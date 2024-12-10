@@ -25,7 +25,11 @@ SECRET_KEY = 'django-insecure-+iq6h=55yl5v0l=0=vd(ty9znxhu#w5dgr_q@9pd37wri&!kbc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["http://localhost:5173","localhost",]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
 
 
 # Application definition
@@ -40,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'usuarios',
+
     
 ]
 
@@ -60,6 +65,7 @@ REST_FRAMEWORK = {
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -94,9 +100,9 @@ WSGI_APPLICATION = 'drf.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'inventario',  # Asegúrate de que no haya tildes ni caracteres no válidos aquí
-        'USER': 'postgres',  # Asegúrate de que no tenga caracteres especiales
-        'PASSWORD': 'admin',  # Verifica si hay tildes o caracteres fuera de ASCII
+        'NAME': 'inventario',  
+        'USER': 'postgres', 
+        'PASSWORD': '123465',  
         'HOST': 'localhost',
         'PORT': '5432',
     }
