@@ -63,8 +63,8 @@ class CambiarContrasenaVista(APIView):
 class DetalleUsuarioVista(generics.RetrieveAPIView):
     """
     Vista para obtener detalles de un usuario.
-    para que te muestre el detalle manda la info ?id=1
     """
+    #para que te muestre el detalle manda la info ?id=1
     serializer_class = DetalleUsuarioSerializer
     permission_classes = [AllowAny]  # Permitir acceso sin autenticación
 
