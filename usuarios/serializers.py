@@ -65,3 +65,4 @@ class DetalleUsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ['id', 'username', 'email', 'telefono', 'rol', 'is_active', 'fecha_creacion']
+        
