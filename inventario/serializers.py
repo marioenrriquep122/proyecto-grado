@@ -36,10 +36,9 @@ class FacturaSerializer(serializers.ModelSerializer):
     referencia = serializers.ReadOnlyField(source="producto.referencia", help_text="Referencia del equipo")
     marca = serializers.ReadOnlyField(source="producto.marca", help_text="Marca del equipo")
     serial = serializers.ReadOnlyField(source="producto.serial", help_text="Número de serie del equipo")
-    
     descripcion = serializers.ReadOnlyField(source="producto.descripcion", help_text="Descripción del equipo")
     fecha_entrada = serializers.ReadOnlyField(source="producto.fecha_entrada", help_text="Fecha de entrada al inventario")
-    valor = serializers.ReadOnlyField(source="producto.valor", help_text="Valor unitario del equipo")  # Aquí uso tu campo "valor"
+    valor = serializers.ReadOnlyField(source="producto.valor", help_text="Valor unitario del equipo")
     estado = serializers.ReadOnlyField(source="producto.estado", help_text="Estado del equipo")
     observaciones = serializers.ReadOnlyField(source="producto.observaciones", help_text="Observaciones del equipo")
     
@@ -50,6 +49,7 @@ class FacturaSerializer(serializers.ModelSerializer):
         model = Factura
         fields = [
             'id',  
+            'numero_factura',  # Campo agregado
             'equipo', 
             'producto',
             'referencia', 
@@ -59,17 +59,17 @@ class FacturaSerializer(serializers.ModelSerializer):
             'descripcion',
             'fecha_entrada', 
             'fecha_salida', 
-             'estado', 
+            'estado', 
             'observaciones', 
             'valor',
             'total'
         ]
         read_only_fields = [
+            'numero_factura',  # Solo lectura
             'equipo', 
             'referencia', 
             'marca', 
             'serial', 
-            'cantidad_inventario', 
             'descripcion', 
             'fecha_entrada', 
             'estado', 
@@ -78,7 +78,7 @@ class FacturaSerializer(serializers.ModelSerializer):
         ]
 
     def get_total(self, obj):
-        # Calcula el total (cantidad * valor del producto)
         return obj.cantidad * float(obj.producto.valor)
+
 
 

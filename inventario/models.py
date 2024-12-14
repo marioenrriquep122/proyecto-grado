@@ -66,16 +66,29 @@ class Reporte(models.Model):
 #modelo de factura 
 
 
-class Factura(models.Model):
-    producto = models.ForeignKey(EquipoMaterial, on_delete=models.CASCADE, related_name="facturas")
-    fecha_salida = models.DateField(verbose_name="Fecha de Salida", null=True, blank=True)
-    cantidad = models.PositiveIntegerField(verbose_name="Cantidad", default=1)
+import random
+from django.db import models
 
-    def calcular_total(self):
-        return self.cantidad * (self.producto.valor or 0)
+class Factura(models.Model):
+    producto = models.ForeignKey('EquipoMaterial', on_delete=models.CASCADE, related_name="facturas")
+    cantidad = models.PositiveIntegerField(verbose_name="Cantidad", default=1)
+    fecha_salida = models.DateField(verbose_name="Fecha de Salida", null=True, blank=True)
+    numero_factura = models.CharField(
+        max_length=20,
+        unique=True,
+        blank=True,
+        null=True,
+        verbose_name="Número de Factura"
+    )
+
+    def save(self, *args, **kwargs):
+        if not self.numero_factura:
+            self.numero_factura = f"FAC-{random.randint(10000, 99999)}"
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Factura {self.id} - Producto: {self.producto.equipo}"
+        return f"Factura {self.numero_factura} - Producto: {self.producto.equipo}"
+
 
 
 
