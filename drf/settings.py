@@ -27,10 +27,13 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["http://localhost:5173","localhost",]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "http://localhost:5173",  # Si el frontend se conecta desde este origen
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
 
@@ -44,6 +47,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'usuarios',
+    'corsheaders',
+    'inventario',
 
     
 ]
@@ -56,7 +61,8 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        # 'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ],
 }
 
@@ -102,7 +108,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'inventario',  
         'USER': 'postgres', 
-        'PASSWORD': '123465',  
+        'PASSWORD': 'admin',  
         'HOST': 'localhost',
         'PORT': '5432',
     }
