@@ -27,12 +27,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["http://localhost:5173","localhost", "127.0.0.1"]
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "http://localhost:5173",  # Si el frontend se conecta desde este origen
-]
-
 CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
@@ -108,7 +102,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'inventario',  
         'USER': 'postgres', 
-        'PASSWORD': 'admin',  
+        'PASSWORD': '123465',  
         'HOST': 'localhost',
         'PORT': '5432',
     }
