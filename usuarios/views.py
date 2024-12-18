@@ -1,54 +1,67 @@
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework.permissions import AllowAny ,IsAuthenticated
 from rest_framework import serializers
-
 from .models import Usuario
 from .serializers import (
     UsuarioSerializer,
     ObtenerTokenPersonalizadoSerializer,
     CambiarContrasenaSerializer,
-    DetalleUsuarioSerializer
+    DetalleUsuarioSerializer,
 )
 
+from django.urls import reverse
 
-class RegistroUsuarioVista(generics.CreateAPIView):
+from rest_framework import viewsets
+from .models import Usuario
+from .serializers import UsuarioSerializer
+from rest_framework.permissions import IsAuthenticated
+
+class UsuarioViewSet(viewsets.ModelViewSet):
     """
-    Vista para registrar usuarios.
+    Vista para manejar todas las operaciones CRUD de usuarios.
     """
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    permission_classes = [AllowAny]  # Permitir registro sin autenticación
+    permission_classes = [AllowAny]
 
 
-class InicioSesionVista(TokenObtainPairView):
+
+# 1. Registro de usuarios (POST)
+class UsuarioRegistroVista(generics.CreateAPIView):
     """
-    Vista para iniciar sesión y obtener el token JWT.
+    Vista para registrar nuevos usuarios.
+    """
+    queryset = Usuario.objects.all()
+    serializer_class = UsuarioSerializer
+    permission_classes = [AllowAny]  # Permite acceso sin autenticación
+
+# 2. Inicio de sesión (Token JWT)
+class UsuarioLoginVista(TokenObtainPairView):
+    """
+    Vista para obtener el token JWT (inicio de sesión).
     """
     serializer_class = ObtenerTokenPersonalizadoSerializer
-    permission_classes = [AllowAny]  # Permitir el inicio de sesión sin autenticación
-    #permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # Permite acceso sin autenticación
 
-class CambiarContrasenaVista(APIView):
+# 3. Cambiar contraseña (POST)
+class UsuarioCambiarContrasenaVista(APIView):
     """
     Vista para cambiar la contraseña de un usuario.
     """
-    permission_classes = [AllowAny]  # Permitir acceso sin autenticación
+    permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        # Obtener el usuario desde el modelo
-        usuario = Usuario.objects.get(username=request.data.get('username'))
+    def post(self, request):
+        usuario = request.user
         serializer = CambiarContrasenaSerializer(data=request.data)
         if serializer.is_valid():
-            # Verifica la contraseña actual
             if not usuario.check_password(serializer.validated_data['contrasena_actual']):
                 return Response(
                     {"detalle": "Contraseña actual incorrecta"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            # Cambia la contraseña
             usuario.set_password(serializer.validated_data['nueva_contrasena'])
             usuario.save()
             return Response(
@@ -57,42 +70,19 @@ class CambiarContrasenaVista(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-
-
-class DetalleUsuarioVista(generics.RetrieveAPIView):
+# 4. Detalle de usuario por parámetro de URL (GET, PUT, PATCH, DELETE)
+class UsuarioDetalleVista(generics.RetrieveUpdateDestroyAPIView):
     """
-    Vista para obtener detalles de un usuario.
-    """
-    #para que te muestre el detalle manda la info ?id=1
-    serializer_class = DetalleUsuarioSerializer
-    permission_classes = [AllowAny]  # Permitir acceso sin autenticación
-
-    def get_object(self):
-        """
-        Retorna un usuario basado en el parámetro 'id' proporcionado en la solicitud.
-        """
-        user_id = self.request.query_params.get('id')  # Obtener el 'id' desde los parámetros de la consulta
-        if not user_id:
-            raise serializers.ValidationError({"detalle": "El parámetro 'id' es requerido."})
-        try:
-            return Usuario.objects.get(id=user_id)
-        except Usuario.DoesNotExist:
-            raise serializers.ValidationError({"detalle": "El usuario con este 'id' no existe."})
-
-
-
-
-class ListaUsuariosVista(generics.ListAPIView):
-    """
-    Vista para listar todos los usuarios.
+    Vista para obtener, actualizar o eliminar un usuario específico.
     """
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
-    permission_classes = [AllowAny]  # Permitir acceso sin autenticación
+    permission_classes = [AllowAny]
 
-    def get_queryset(self):
-        """
-        Retorna todos los usuarios.
-        """
-        return super().get_queryset()
+
+    
+    
+    
+    
+    
+
