@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Categoria, EquipoMaterial, Factura, Reporte
+from .models import Actividad, Categoria, EquipoMaterial, Factura, Reporte
 
 
 class CategoriaSerializer(serializers.ModelSerializer):
@@ -132,3 +132,26 @@ class FacturaSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+    
+    
+
+
+
+
+class ActividadSerializer(serializers.ModelSerializer):
+    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
+    factura_numero = serializers.CharField(source='factura.numero_factura', read_only=True)
+
+    class Meta:
+        model = Actividad
+        fields = [
+            'id',
+            'tipo',           # Tipo de actividad (clave interna)
+            'tipo_display',   # Descripción legible del tipo
+            'factura',        # ID de la factura asociada
+            'factura_numero', # Número legible de la factura
+            'descripcion',    # Descripción detallada
+            'fecha',          # Fecha de la actividad
+        ]
+
+

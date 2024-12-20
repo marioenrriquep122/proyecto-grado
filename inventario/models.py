@@ -91,6 +91,28 @@ class Factura(models.Model):
 
 
 
+from django.db import models
+
+class Actividad(models.Model):
+    TIPO_CHOICES = [
+        ('venta', 'Venta realizada'),
+        ('actualizacion', 'Producto actualizado'),
+        ('factura', 'Factura emitida'),
+        ('otro', 'Otro tipo de actividad'),
+    ]
+
+    tipo = models.CharField(max_length=50, choices=TIPO_CHOICES, verbose_name="Tipo de Actividad")
+    factura = models.ForeignKey('Factura', on_delete=models.SET_NULL, null=True, blank=True, related_name='actividades', verbose_name="Factura relacionada")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción de la Actividad")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de la Actividad")
+
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.factura.numero_factura if self.factura else 'Sin factura'}"
+
+
+   
+
+
 
 
 
