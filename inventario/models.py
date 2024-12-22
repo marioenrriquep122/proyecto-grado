@@ -1,4 +1,8 @@
 from django.db import models
+from django.conf import settings
+import random
+
+
 
 # Modelo para Categoría
 class Categoria(models.Model):
@@ -9,7 +13,7 @@ class Categoria(models.Model):
         return self.nombre
 
 
-# Modelo para EquipoMaterial
+# Modelo para Productos que se llama equipo material
 class EquipoMaterial(models.Model):
     ESTADO_CHOICES = (
         ('disponible', 'Disponible'),
@@ -52,23 +56,41 @@ class EquipoMaterial(models.Model):
 
 # Modelo para Reporte
 class Reporte(models.Model):
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    contenido = models.TextField(blank=True, null=True)
-    tipo = models.CharField(max_length=100, blank=True, null=True)
+    TIPO_REPORTE_CHOICES = [
+        ('general', 'Reporte General'),
+        ('personalizado', 'Reporte Personalizado'),
+        ('estadistico', 'Reporte Estadístico'),
+        ('operativo', 'Reporte Operativo'),
+        ('financiero', 'Reporte Financiero'),
+            
+    ]
+
+    FILTRO_CHOICES = [
+        ('facturas', 'Facturas'),
+        ('productos', 'Productos'),
+        ('categorias', 'Categorías'),
+        ('usuarios', 'Usuarios'),
+    ]
+
+    tipo = models.CharField(
+        max_length=50, 
+        choices=TIPO_REPORTE_CHOICES, 
+        default='general', 
+        verbose_name="Tipo de Reporte"
+    )
+    filtro = models.CharField(
+        max_length=50, 
+        choices=FILTRO_CHOICES, 
+        verbose_name="Filtro de Datos"
+    )
+    fecha_inicio = models.DateField(null=True, blank=True, verbose_name="Fecha de Inicio")
+    fecha_fin = models.DateField(null=True, blank=True, verbose_name="Fecha de Fin")
+    datos = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
-        return f"Reporte {self.tipo or 'Sin tipo'} - {self.fecha_creacion}"
-
-
-
-
+        return f"{self.get_tipo_display()} - {self.get_filtro_display()}"
 
 #modelo de factura 
-
-
-import random
-from django.db import models
-
 class Factura(models.Model):
     producto = models.ForeignKey('EquipoMaterial', on_delete=models.CASCADE, related_name="facturas")
     cantidad = models.PositiveIntegerField(verbose_name="Cantidad", default=1)
@@ -91,7 +113,9 @@ class Factura(models.Model):
 
 
 
-from django.db import models
+
+
+#modelo de factura
 
 class Actividad(models.Model):
     TIPO_CHOICES = [

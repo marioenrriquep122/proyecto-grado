@@ -1,19 +1,24 @@
 import datetime
-from django.db import models  # Import necesario para usar F en las consultas dinámicas
+import csv
+
+from django.db import models  
+from django.db.models import Count, Sum, F, Q
+from django.http import HttpResponse
+from django.utils.timezone import now
+
+from usuarios.models import Usuario
+from .models import Categoria, EquipoMaterial,  Reporte, Factura, Actividad, Factura
+from .serializers import ActividadSerializer, CategoriaSerializer, EquipoMaterialSerializer, ReporteSerializer, FacturaSerializer
+
 from rest_framework import viewsets,status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
-from django.http import HttpResponse
 from rest_framework.permissions import AllowAny
-import csv
-
-
-from django.db.models import Count, Sum, F, Q
 from rest_framework.views import APIView
 
-from .models import Categoria, EquipoMaterial,  Reporte, Factura, Actividad
-from .serializers import ActividadSerializer, CategoriaSerializer, EquipoMaterialSerializer, ReporteSerializer, FacturaSerializer
+from .serializers import ReporteSerializer
+
 
 
 # --- Categoría ---
@@ -26,7 +31,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]  # Permitir acceso sin autenticación (puedes cambiar esto según necesidad)
 
 
-# --- EquipoMaterial ---
+# --- EquipoMaterial  que es producto---
 class EquipoMaterialViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestionar el CRUD de Equipos y Materiales.
@@ -76,29 +81,113 @@ class EquipoMaterialViewSet(viewsets.ModelViewSet):
 
         return response
     
-    
-    
-
-
-
-
-
 # --- Reporte ---
+
 class ReporteViewSet(viewsets.ModelViewSet):
     """
-    ViewSet para gestionar el CRUD de Reportes.
+    ViewSet para gestionar el CRUD de Reportes y generar datos dinámicos.
     """
     queryset = Reporte.objects.all()
     serializer_class = ReporteSerializer
-    permission_classes = [AllowAny]  # Permitir acceso sin autenticación (puedes ajustar esto)
+
+    def create(self, request, *args, **kwargs):
+        """
+        Crear un reporte y devolver los datos generados dinámicamente.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        reporte = serializer.instance
+
+        # Generar los datos dinámicos basados en el filtro del reporte
+        datos = self.generar_datos(reporte.filtro, reporte.fecha_inicio, reporte.fecha_fin)
+
+        # Incluir los datos generados en la respuesta
+        response_data = serializer.data
+        response_data["datos"] = datos
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Recuperar un reporte e incluir los datos generados dinámicamente.
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+
+        # Generar datos dinámicos basados en el filtro
+        datos = self.generar_datos(instance.filtro, instance.fecha_inicio, instance.fecha_fin)
+
+        # Incluir los datos generados en la respuesta
+        response_data = serializer.data
+        response_data["datos"] = datos
+        return Response(response_data)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Actualizar un reporte y regenerar los datos dinámicos.
+        """
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # Regenerar los datos dinámicos
+        datos = self.generar_datos(instance.filtro, instance.fecha_inicio, instance.fecha_fin)
+
+        # Incluir los datos generados en la respuesta
+        response_data = serializer.data
+        response_data["datos"] = datos
+        return Response(response_data)
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Actualizar parcialmente un reporte y regenerar los datos dinámicos.
+        """
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Personaliza la respuesta al eliminar un reporte.
+        """
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(
+            {"message": f"El reporte con ID {instance.id} fue eliminado exitosamente."},
+            status=status.HTTP_200_OK
+        )
+
+    def generar_datos(self, filtro, fecha_inicio, fecha_fin):
+        """
+        Generar datos dinámicos según el filtro seleccionado.
+        """
+        if filtro == "facturas":
+            facturas = Factura.objects.all()
+            if fecha_inicio and fecha_fin:
+                facturas = facturas.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
+            return list(facturas.values("id", "producto__equipo", "cantidad", "fecha_salida", "numero_factura"))
+
+        elif filtro == "productos":
+            productos = EquipoMaterial.objects.all()
+            if fecha_inicio and fecha_fin:
+                productos = productos.filter(fecha_entrada__range=[fecha_inicio, fecha_fin])
+            return list(productos.values("id", "equipo", "marca", "serial", "cantidad", "estado", "categoria__nombre"))
+
+        elif filtro == "categorias":
+            categorias = Categoria.objects.all()
+            return list(categorias.values("id", "nombre", "descripcion"))
+
+        elif filtro == "usuarios":
+            usuarios = Usuario.objects.all()  # Usa tu modelo personalizado
+            if fecha_inicio and fecha_fin:
+                usuarios = usuarios.filter(fecha_creacion__range=[fecha_inicio, fecha_fin])
+            return list(usuarios.values("id", "username", "email", "telefono", "rol", "is_active", "fecha_creacion"))
+
+        return []
 
 
-
-
-
-
-
-
+# --- Factura ---
 class FacturaViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestionar el CRUD de facturas.
@@ -170,7 +259,7 @@ class FacturaViewSet(viewsets.ModelViewSet):
 
 
 
-
+# --- Actividad ---
 class ActividadViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestionar el CRUD de actividades.
@@ -195,9 +284,8 @@ class ActividadViewSet(viewsets.ModelViewSet):
             factura = Factura.objects.filter(id=factura_id).first()
             if factura:
                 descripcion = (
-                    f"Actividad de tipo '{tipo}' realizada. Factura: {factura.numero_factura}. "
-                    f"Producto: {factura.producto.equipo}, Cantidad: {factura.cantidad} unidades, "
-                    f"Total: ${factura.cantidad * factura.producto.valor:.2f}."
+                    f"Se agrego una nueva factura con el numero : {factura.numero_factura}. "
+                    
                 )
             else:
                 descripcion = f"Actividad de tipo '{tipo}' registrada sin una factura específica."
@@ -217,12 +305,8 @@ class ActividadViewSet(viewsets.ModelViewSet):
 
 
 
-from django.db.models import Count, Sum, F
-from django.utils.timezone import now
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from .models import Categoria, EquipoMaterial, Factura, Actividad
 
+# --- Resumen ---
 class ResumenView(APIView):
     """
     Vista para consolidar las estadísticas del sistema.
@@ -238,30 +322,20 @@ class ResumenView(APIView):
         else:
             fecha_seleccionada = now().date()
 
-        # 1. Total de categorías
         total_categorias = Categoria.objects.count()
-
-        # 2. Total de productos
         total_productos = EquipoMaterial.objects.count()
-
-        # 3. Total de facturas
         total_facturas = Factura.objects.count()
-
-        # 4. Total de actividades
         total_actividades = Actividad.objects.count()
-
-        # 5. Stock total disponible
         stock_total = EquipoMaterial.objects.aggregate(total_stock=Sum('cantidad'))['total_stock'] or 0
-
-        # 6. Ventas totales (suma de cantidad * valor de todas las facturas)
         ventas_totales = Factura.objects.aggregate(
             total_ventas=Sum(F('cantidad') * F('producto__valor'))
         )['total_ventas'] or 0
-
-        # 7. Facturas del día (filtrar por fecha seleccionada)
         facturas_del_dia = Factura.objects.filter(fecha_salida=fecha_seleccionada).count()
+        total_del_dia = Factura.objects.filter(fecha_salida=fecha_seleccionada).aggregate(
+            total_dia=Sum(F('cantidad') * F('producto__valor'))
+        )['total_dia'] or 0
 
-        # Construir la respuesta JSON
+       
         resumen = {
             "fecha_seleccionada": str(fecha_seleccionada),
             "total_categorias": total_categorias,
@@ -271,6 +345,7 @@ class ResumenView(APIView):
             "stock_total_disponible": stock_total,
             "ventas_totales": ventas_totales,
             "facturas_del_dia": facturas_del_dia,
+            "total_del_dia": total_del_dia,  
         }
 
         return Response(resumen)

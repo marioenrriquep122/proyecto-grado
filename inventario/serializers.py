@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Actividad, Categoria, EquipoMaterial, Factura, Reporte
-
+from .models import Factura
 
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -21,17 +21,10 @@ class EquipoMaterialSerializer(serializers.ModelSerializer):
 class ReporteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reporte
-        fields = '__all__'
+        fields = ['id', 'tipo', 'filtro', 'fecha_inicio', 'fecha_fin', 'datos']
+        read_only_fields = ['datos']
         
         
-        
-        
-
-
-
-
-from rest_framework import serializers
-from .models import Factura
 
 class FacturaSerializer(serializers.ModelSerializer):
     # Campos calculados
@@ -67,8 +60,8 @@ class FacturaSerializer(serializers.ModelSerializer):
             'estado',
             'observaciones',
             'valor',
-            'total',  # Campo calculado
-            'stock_restante'  # Campo calculado
+            'total',  
+            'stock_restante'  
         ]
 
     # Métodos para los campos calculados
@@ -133,10 +126,6 @@ class FacturaSerializer(serializers.ModelSerializer):
 
         return instance
     
-    
-
-
-
 
 class ActividadSerializer(serializers.ModelSerializer):
     tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
@@ -146,12 +135,12 @@ class ActividadSerializer(serializers.ModelSerializer):
         model = Actividad
         fields = [
             'id',
-            'tipo',           # Tipo de actividad (clave interna)
-            'tipo_display',   # Descripción legible del tipo
-            'factura',        # ID de la factura asociada
-            'factura_numero', # Número legible de la factura
-            'descripcion',    # Descripción detallada
-            'fecha',          # Fecha de la actividad
+            'tipo',           
+            'tipo_display',   
+            'factura',        
+            'factura_numero',
+            'descripcion',    
+            'fecha',          
         ]
 
 
