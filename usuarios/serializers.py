@@ -57,6 +57,7 @@ class CambiarContrasenaSerializer(serializers.Serializer):
     nueva_contrasena = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
 
 
+
 class DetalleUsuarioSerializer(serializers.ModelSerializer):
     """
     Serializer para mostrar detalles del usuario (lectura).
