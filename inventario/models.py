@@ -17,7 +17,6 @@ class Categoria(models.Model):
 class EquipoMaterial(models.Model):
     ESTADO_CHOICES = (
         ('disponible', 'Disponible'),
-        ('prestado', 'Prestado'),
         ('en_mantenimiento', 'En Mantenimiento'),
         ('retirado', 'Retirado'),
     )
@@ -50,6 +49,7 @@ class EquipoMaterial(models.Model):
 
     def __str__(self):
         return f"{self.equipo or 'Sin nombre'} ({self.referencia or 'Sin referencia'}) - {self.estado or 'Sin estado'}"
+
 
 
 
@@ -89,6 +89,9 @@ class Reporte(models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.get_filtro_display()}"
+    
+    
+    
 
 #modelo de factura 
 class Factura(models.Model):
