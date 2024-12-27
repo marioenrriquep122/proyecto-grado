@@ -1,6 +1,9 @@
+from datetime import date
 from django.db import models
 from django.conf import settings
 import random
+
+from django.forms import ValidationError
 
 
 
@@ -28,27 +31,45 @@ class EquipoMaterial(models.Model):
     cantidad = models.PositiveIntegerField(default=0, blank=True, null=True, verbose_name="Cantidad en inventario")
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
     categoria = models.ForeignKey(
-        Categoria,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        'Categoria',
+        on_delete=models.PROTECT,
+        null=False,
+        blank=False,
         related_name='productos',
         verbose_name="Categoría"
     )
     fecha_entrada = models.DateField(verbose_name="Fecha de entrada", null=True, blank=True)
-    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="valor", null=True, blank=True)
+    valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor", null=True, blank=True)
     observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
     estado = models.CharField(
         max_length=20,
         choices=ESTADO_CHOICES,
-        blank=True,
-        null=True,
         default='disponible',
         verbose_name="Estado del equipo"
     )
 
+    @property
+    def esta_en_mantenimiento(self):
+        """
+        Verifica si el producto está marcado como en mantenimiento.
+        """
+        return self.estado == 'en_mantenimiento'
+
+    def save(self, *args, **kwargs):
+        if self.esta_en_mantenimiento and self.estado != 'en_mantenimiento':
+            raise ValueError("El producto no puede estar marcado como en mantenimiento si su estado no es 'en_mantenimiento'.")
+        if self.cantidad == 0:
+            self.estado = 'retirado'
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.equipo or 'Sin nombre'} ({self.referencia or 'Sin referencia'}) - {self.estado or 'Sin estado'}"
+        return f"{self.equipo} - {self.marca} ({self.serial})"
+
+
+
+
+        
+    
 
 
 
@@ -70,6 +91,8 @@ class Reporte(models.Model):
         ('productos', 'Productos'),
         ('categorias', 'Categorías'),
         ('usuarios', 'Usuarios'),
+        ('actividades', 'Actividades'),
+        ('mantenimientos', 'Mantenimientos'),
     ]
 
     tipo = models.CharField(
@@ -135,6 +158,73 @@ class Actividad(models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.factura.numero_factura if self.factura else 'Sin factura'}"
+    
+    
+    #mantenimiento 
+class Mantenimiento(models.Model):
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('en_proceso', 'En Proceso'),
+        ('completado', 'Completado'),
+    ]
+
+    producto = models.ForeignKey(
+        'EquipoMaterial',
+        on_delete=models.CASCADE,
+        related_name='mantenimientos',
+        verbose_name="Producto"
+    )
+    descripcion = models.TextField(verbose_name="Descripción del Mantenimiento")
+    fecha_inicio = models.DateField(auto_now_add=True, verbose_name="Fecha de Inicio")
+    fecha_fin = models.DateField(blank=True, null=True, verbose_name="Fecha de Fin")
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='pendiente',
+        verbose_name="Estado"
+    )
+    costo = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name="Costo del Mantenimiento"
+    )
+
+    def save(self, *args, **kwargs):
+        # Si el estado es "completado", actualizar el estado del producto
+        if self.estado == 'completado':
+            self.producto.estado = 'disponible'
+        elif self.estado in ['pendiente', 'en_proceso']:
+            self.producto.estado = 'en_mantenimiento'
+        self.producto.save()  # Guardar el cambio en el producto
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Mantenimiento: {self.producto.equipo} - {self.get_estado_display()}"
+
+    
+    
+
+
+
+
+from django.utils.timezone import now
+
+class Resumen(models.Model):
+    fecha_inicio = models.DateField(verbose_name="Fecha de Inicio del Resumen", null=False, blank=False, default='2024-12-01')
+    fecha_fin = models.DateField(verbose_name="Fecha de Fin del Resumen", null=False, blank=False, default='2024-12-31')
+
+    def __str__(self):
+        return f"Resumen del {self.fecha_inicio} al {self.fecha_fin}"
+
+
+
+
+
+
+
+
 
 
    
