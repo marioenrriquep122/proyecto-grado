@@ -46,28 +46,52 @@ class UsuarioLoginVista(TokenObtainPairView):
     serializer_class = ObtenerTokenPersonalizadoSerializer
     permission_classes = [AllowAny]  # Permite acceso sin autenticación
 
+
+
+from django.contrib.auth.models import User
 # 3. Cambiar contraseña (POST)
 class UsuarioCambiarContrasenaVista(APIView):
     """
-    Vista para cambiar la contraseña de un usuario.
+    Vista para cambiar la contraseña de un usuario por ID.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny]  # Cambia esto si necesitas permitir accesos especiales
 
     def post(self, request):
-        usuario = request.user
+        # Obtener el ID del usuario desde los parámetros de consulta
+        user_id = request.query_params.get('id')
+        if not user_id:
+            return Response(
+                {"detalle": "El parámetro 'id' es requerido."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verificar si el usuario existe
+        try:
+            usuario = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"detalle": "Usuario no encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Validar la entrada con el serializer
         serializer = CambiarContrasenaSerializer(data=request.data)
         if serializer.is_valid():
-            if not usuario.check_password(serializer.validated_data['contrasena_actual']):
+            # Verificar la contraseña actual del usuario autenticado (opcional)
+            if not request.user.check_password(serializer.validated_data['contrasena_actual']):
                 return Response(
-                    {"detalle": "Contraseña actual incorrecta"},
+                    {"detalle": "Contraseña actual incorrecta."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            
+            # Actualizar la contraseña del usuario
             usuario.set_password(serializer.validated_data['nueva_contrasena'])
             usuario.save()
             return Response(
-                {"detalle": "Contraseña actualizada correctamente"},
+                {"detalle": "Contraseña actualizada correctamente."},
                 status=status.HTTP_200_OK
             )
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # 4. Detalle de usuario por parámetro de URL (GET, PUT, PATCH, DELETE)

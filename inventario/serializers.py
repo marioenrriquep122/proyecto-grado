@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from .models import Actividad, Categoria, EquipoMaterial, Factura, Reporte
-
+from .models import Actividad, Categoria, EquipoMaterial, Factura, Mantenimiento, Reporte, Resumen
+from .models import Factura
 
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -9,11 +9,17 @@ class CategoriaSerializer(serializers.ModelSerializer):
 
 
 class EquipoMaterialSerializer(serializers.ModelSerializer):
-    categoria_nombre = serializers.CharField(source='categoria.nombre', read_only=True)
+    esta_en_mantenimiento = serializers.SerializerMethodField()
+    categoria = serializers.CharField(source='categoria.nombre', read_only=True)
+    
 
     class Meta:
         model = EquipoMaterial
         fields = '__all__'
+
+    def get_esta_en_mantenimiento(self, obj):
+        return obj.esta_en_mantenimiento
+
 
 
 
@@ -21,17 +27,10 @@ class EquipoMaterialSerializer(serializers.ModelSerializer):
 class ReporteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reporte
-        fields = '__all__'
+        fields = ['id', 'tipo', 'filtro', 'fecha_inicio', 'fecha_fin', 'datos']
+        read_only_fields = ['datos']
         
         
-        
-        
-
-
-
-
-from rest_framework import serializers
-from .models import Factura
 
 class FacturaSerializer(serializers.ModelSerializer):
     # Campos calculados
@@ -67,8 +66,8 @@ class FacturaSerializer(serializers.ModelSerializer):
             'estado',
             'observaciones',
             'valor',
-            'total',  # Campo calculado
-            'stock_restante'  # Campo calculado
+            'total',  
+            'stock_restante'  
         ]
 
     # Métodos para los campos calculados
@@ -133,10 +132,6 @@ class FacturaSerializer(serializers.ModelSerializer):
 
         return instance
     
-    
-
-
-
 
 class ActividadSerializer(serializers.ModelSerializer):
     tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
@@ -146,12 +141,73 @@ class ActividadSerializer(serializers.ModelSerializer):
         model = Actividad
         fields = [
             'id',
-            'tipo',           # Tipo de actividad (clave interna)
-            'tipo_display',   # Descripción legible del tipo
-            'factura',        # ID de la factura asociada
-            'factura_numero', # Número legible de la factura
-            'descripcion',    # Descripción detallada
-            'fecha',          # Fecha de la actividad
+            'tipo',           
+            'tipo_display',   
+            'factura',        
+            'factura_numero',
+            'descripcion',    
+            'fecha',          
         ]
+        
+        
+      
+
+class MantenimientoSerializer(serializers.ModelSerializer):
+    producto_nombre = serializers.CharField(source='producto.equipo', read_only=True)
+
+    class Meta:
+        model = Mantenimiento
+        fields = [
+            'id',
+            'producto',
+            'producto_nombre',
+            'descripcion',
+            'fecha_inicio',
+            'fecha_fin',
+            'estado',
+            'costo',
+        ]
+
+    def validate(self, data):
+        # Validar que el estado "completado" solo se puede asignar si corresponde
+        producto = self.instance.producto if self.instance else data.get('producto')
+        estado = data.get('estado', self.instance.estado if self.instance else None)
+
+        if estado == 'completado' and producto.estado != 'en_mantenimiento':
+            raise serializers.ValidationError(
+                f"El producto '{producto.equipo}' no está en mantenimiento y no puede marcarse como completado."
+            )
+
+        return data
+
+
+    
+
+
+from rest_framework import serializers
+from .models import Resumen
+
+class ResumenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Resumen
+        fields = ['id', 'fecha_inicio', 'fecha_fin']
+
+    def validate(self, data):
+        # Validar que ambos campos tengan valores
+        fecha_inicio = data.get('fecha_inicio')
+        fecha_fin = data.get('fecha_fin')
+
+        if not fecha_inicio or not fecha_fin:
+            raise serializers.ValidationError("Ambas fechas (inicio y fin) son obligatorias.")
+
+        # Validar que fecha_inicio <= fecha_fin
+        if fecha_inicio > fecha_fin:
+            raise serializers.ValidationError("La fecha de inicio no puede ser mayor que la fecha de fin.")
+
+        return data
+
+
+
+
 
 
