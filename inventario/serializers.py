@@ -10,7 +10,7 @@ class CategoriaSerializer(serializers.ModelSerializer):
 
 class EquipoMaterialSerializer(serializers.ModelSerializer):
     esta_en_mantenimiento = serializers.SerializerMethodField()
-    categoria = serializers.CharField(source='categoria.nombre', read_only=True)
+    # categoria = serializers.CharField(source='categoria.nombre', read_only=True)
     
 
     class Meta:
@@ -184,27 +184,26 @@ class MantenimientoSerializer(serializers.ModelSerializer):
     
 
 
-from rest_framework import serializers
-from .models import Resumen
+
+
+from datetime import date
 
 class ResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resumen
-        fields = ['id', 'fecha_inicio', 'fecha_fin']
+        fields = ['id', 'fecha_hoy']
+
+    fecha_hoy = serializers.DateField(default=date.today)  # Campo para manejar la fecha de hoy
 
     def validate(self, data):
-        # Validar que ambos campos tengan valores
-        fecha_inicio = data.get('fecha_inicio')
-        fecha_fin = data.get('fecha_fin')
+        # Validar que la fecha no sea futura
+        fecha_hoy = data.get('fecha_hoy', date.today())
 
-        if not fecha_inicio or not fecha_fin:
-            raise serializers.ValidationError("Ambas fechas (inicio y fin) son obligatorias.")
-
-        # Validar que fecha_inicio <= fecha_fin
-        if fecha_inicio > fecha_fin:
-            raise serializers.ValidationError("La fecha de inicio no puede ser mayor que la fecha de fin.")
+        if fecha_hoy > date.today():
+            raise serializers.ValidationError("La fecha no puede ser en el futuro.")
 
         return data
+
 
 
 

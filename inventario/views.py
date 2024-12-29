@@ -475,32 +475,28 @@ class ResumenViewSet(ModelViewSet):
 
         return Response({
             "id": instance.id,
-            "fecha_inicio": str(instance.fecha_inicio),
-            "fecha_fin": str(instance.fecha_fin),
+            "fecha_hoy": str(date.today()),
             "datos": resumen_datos
         })
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        if not instance.fecha_inicio or not instance.fecha_fin:
-            raise ValidationError("Las fechas de inicio y fin deben estar configuradas.")
 
-        # Calcular los datos dinámicos
-        resumen_datos = self._calcular_datos(instance.fecha_inicio, instance.fecha_fin)
+        # Calcular los datos dinámicos usando solo la fecha de hoy
+        resumen_datos = self._calcular_datos(instance.fecha_hoy)  # Asegúrate de pasar un solo argumento
 
-        # Si no hay datos, devolver un mensaje
         if not resumen_datos:
             return Response(
-                {"message": "No se encontraron datos para el rango de fechas proporcionado."},
+                {"message": "No se encontraron datos para la fecha de hoy."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
         return Response({
             "id": instance.id,
-            "fecha_inicio": str(instance.fecha_inicio),
-            "fecha_fin": str(instance.fecha_fin),
+            "fecha_hoy": str(instance.fecha_hoy),
             "datos": resumen_datos
         })
+
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -521,8 +517,7 @@ class ResumenViewSet(ModelViewSet):
 
         return Response({
             "id": instance.id,
-            "fecha_inicio": str(instance.fecha_inicio),
-            "fecha_fin": str(instance.fecha_fin),
+            "fecha_hoy": str(date.today()),
             "datos": resumen_datos
         })
 
@@ -531,36 +526,45 @@ class ResumenViewSet(ModelViewSet):
         instance.delete()
         return Response({"message": "Resumen eliminado correctamente."}, status=status.HTTP_204_NO_CONTENT)
 
-    def _calcular_datos(self, fecha_inicio, fecha_fin):
-        # Validar que las fechas sean válidas
-        if not fecha_inicio or not fecha_fin:
+    from django.db.models import Sum
+
+    from django.db.models import Sum, F
+
+    def _calcular_datos(self, fecha_hoy):
+        # Validar que la fecha sea válida
+        if not fecha_hoy:
             return []
 
-        # Filtrar datos entre las fechas
+        # Calcular totales generales
         categorias_totales = Categoria.objects.count()
         productos_totales = EquipoMaterial.objects.count()
         facturas_totales = Factura.objects.count()
         actividades_totales = Actividad.objects.count()
         mantenimientos_totales = Mantenimiento.objects.count()
         stock_total_disponible = EquipoMaterial.objects.aggregate(total_stock=Sum('cantidad'))['total_stock'] or 0
+
+        # Calcular ventas totales dinámicamente
         ventas_totales = Factura.objects.aggregate(
             total_ventas=Sum(F('cantidad') * F('producto__valor'))
         )['total_ventas'] or 0
 
-        # Calcular los totales diarios y acumulativos
-        facturas_en_rango = Factura.objects.filter(fecha_salida__range=(fecha_inicio, fecha_fin))
-        actividades_en_rango = Actividad.objects.filter(fecha__date__range=(fecha_inicio, fecha_fin))
-        mantenimientos_activos = Mantenimiento.objects.filter(
-            Q(fecha_inicio__lte=fecha_fin) & Q(fecha_fin__gte=fecha_inicio)
-        )
+        # Filtrar facturas del día por `fecha_salida`
+        facturas_del_dia = Factura.objects.filter(fecha_salida=fecha_hoy)
 
-        facturas_del_dia = facturas_en_rango.count()
-        actividades_del_dia = actividades_en_rango.count()
-        total_del_dia = facturas_en_rango.aggregate(
+        # Calcular ventas del día dinámicamente
+        total_del_dia = facturas_del_dia.aggregate(
             total_dia=Sum(F('cantidad') * F('producto__valor'))
         )['total_dia'] or 0
 
-        # Consolidar los totales
+        # Filtrar actividades del día por fecha
+        actividades_del_dia = Actividad.objects.filter(fecha__date=fecha_hoy)
+
+        # Filtrar mantenimientos activos
+        mantenimientos_activos = Mantenimiento.objects.filter(
+            Q(fecha_inicio__lte=fecha_hoy) & Q(fecha_fin__gte=fecha_hoy)
+        )
+
+        # Consolidar los datos
         resumen_datos = {
             "total_categorias": categorias_totales,
             "total_productos": productos_totales,
@@ -568,20 +572,15 @@ class ResumenViewSet(ModelViewSet):
             "total_actividades": actividades_totales,
             "total_mantenimientos": mantenimientos_totales,
             "stock_total_disponible": stock_total_disponible,
-            "ventas_totales": ventas_totales,
-            "facturas_del_dia": facturas_del_dia,
-            "actividades_del_dia": actividades_del_dia,
+            "ventas_totales": ventas_totales,  # Suma total de todas las facturas
+            "facturas_del_dia": facturas_del_dia.count(),
+            "actividades_del_dia": actividades_del_dia.count(),
             "mantenimientos_activos": mantenimientos_activos.count(),
-            "total_del_dia": total_del_dia,
+            "total_del_dia": total_del_dia,  # Suma total de las facturas del día
         }
 
         return resumen_datos
 
-
-
-
-   
-    
     
 class MantenimientoViewSet(viewsets.ModelViewSet):
     queryset = Mantenimiento.objects.all()
