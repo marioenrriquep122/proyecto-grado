@@ -10,7 +10,7 @@ class CategoriaSerializer(serializers.ModelSerializer):
 
 class EquipoMaterialSerializer(serializers.ModelSerializer):
     esta_en_mantenimiento = serializers.SerializerMethodField()
-    categoria = serializers.CharField(source='categoria.nombre', read_only=True)
+    # categoria = serializers.CharField(source='categoria.nombre', read_only=True)
     
 
     class Meta:
