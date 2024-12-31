@@ -212,11 +212,10 @@ class Mantenimiento(models.Model):
 from django.utils.timezone import now
 
 class Resumen(models.Model):
-    fecha_inicio = models.DateField(verbose_name="Fecha de Inicio del Resumen", null=False, blank=False, default='2024-12-01')
-    fecha_fin = models.DateField(verbose_name="Fecha de Fin del Resumen", null=False, blank=False, default='2024-12-31')
+    fecha_hoy = models.DateField(default=date.today)
 
     def __str__(self):
-        return f"Resumen del {self.fecha_inicio} al {self.fecha_fin}"
+        return f"Resumen del {self.fecha_hoy} - {now().strftime('%H:%M:%S')}"
 
 
 
