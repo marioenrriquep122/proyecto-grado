@@ -205,13 +205,24 @@ class Mantenimiento(models.Model):
 
 #nada
 
+
+
+from django.db import models
 from django.utils.timezone import now
 
-class Resumen(models.Model):
-    fecha_hoy = models.DateField(default=date.today)
 
+
+from django.db import models
+
+
+
+class Resumen(models.Model):
     def __str__(self):
-        return f"Resumen del {self.fecha_hoy} - {now().strftime('%H:%M:%S')}"
+        return "Resumen único del sistema"
+
+
+
+
 
 
 

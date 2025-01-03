@@ -455,92 +455,27 @@ from datetime import date
 
 
 
-from datetime import date
-from django.db.models import Sum, F, Q
-from rest_framework.viewsets import ModelViewSet
+
+from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
-from rest_framework import status
+from django.db.models import Sum, F, Q
 from .models import Resumen
-from .serializers import ResumenSerializer
+from datetime import date
 
-class ResumenViewSet(ModelViewSet):
-    queryset = Resumen.objects.all()
-    serializer_class = ResumenSerializer
+class ResumenViewSet(ViewSet):
+    def list(self, request, *args, **kwargs):
+        # Asegurarse de que existe un único resumen
+        resumen, created = Resumen.objects.get_or_create()
 
-    def create(self, request, *args, **kwargs):
-        # Crear el objeto Resumen
-        instance = Resumen.objects.create()
-
-        # Utilizar la fecha actual para calcular los datos dinámicos
-        hoy = date.today()
-        resumen_datos = self._calcular_datos(hoy)
-
-        # Si no hay datos, devolver un mensaje
-        if not resumen_datos:
-            return Response(
-                {"message": "No se encontraron datos para la fecha actual."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        # Calcular dinámicamente los datos consolidados
+        resumen_datos = self._calcular_datos()
 
         return Response({
-            "id": instance.id,
-            "fecha_actual": str(hoy),
+            "id": resumen.id,
             "datos": resumen_datos
         })
 
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-
-        # Utilizar la fecha actual para calcular los datos dinámicos
-        hoy = date.today()
-        resumen_datos = self._calcular_datos(hoy)
-
-        if not resumen_datos:
-            return Response(
-                {"message": "No se encontraron datos para la fecha actual."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        return Response({
-            "id": instance.id,
-            "fecha_actual": str(hoy),
-            "datos": resumen_datos
-        })
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
-
-        # Utilizar la fecha actual para calcular los datos dinámicos
-        hoy = date.today()
-        resumen_datos = self._calcular_datos(hoy)
-
-        # Si no hay datos, devolver un mensaje
-        if not resumen_datos:
-            return Response(
-                {"message": "No se encontraron datos para la fecha actual."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        return Response({
-            "id": instance.id,
-            "fecha_actual": str(hoy),
-            "datos": resumen_datos
-        })
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.delete()
-        return Response({"message": "Resumen eliminado correctamente."}, status=status.HTTP_204_NO_CONTENT)
-
-    def _calcular_datos(self, fecha):
-        # Validar que la fecha sea válida
-        if not fecha:
-            return []
-
+    def _calcular_datos(self):
         # Calcular totales generales
         categorias_totales = Categoria.objects.count()
         productos_totales = EquipoMaterial.objects.count()
@@ -555,7 +490,8 @@ class ResumenViewSet(ModelViewSet):
         )['total_ventas'] or 0
 
         # Filtrar facturas del día por `fecha_salida`
-        facturas_del_dia = Factura.objects.filter(fecha_salida=fecha)
+        hoy = date.today()
+        facturas_del_dia = Factura.objects.filter(fecha_salida=hoy)
 
         # Calcular ventas del día dinámicamente
         total_del_dia = facturas_del_dia.aggregate(
@@ -563,11 +499,11 @@ class ResumenViewSet(ModelViewSet):
         )['total_dia'] or 0
 
         # Filtrar actividades del día por fecha
-        actividades_del_dia = Actividad.objects.filter(fecha__date=fecha)
+        actividades_del_dia = Actividad.objects.filter(fecha__date=hoy)
 
         # Filtrar mantenimientos activos
         mantenimientos_activos = Mantenimiento.objects.filter(
-            Q(fecha_inicio__lte=fecha) & Q(fecha_fin__gte=fecha)
+            Q(fecha_inicio__lte=hoy) & Q(fecha_fin__gte=hoy)
         )
 
         # Consolidar los datos
@@ -586,6 +522,7 @@ class ResumenViewSet(ModelViewSet):
         }
 
         return resumen_datos
+
 
 
     

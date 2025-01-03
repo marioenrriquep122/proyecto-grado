@@ -186,23 +186,13 @@ class MantenimientoSerializer(serializers.ModelSerializer):
 
 
 
-from datetime import date
+from rest_framework import serializers
+from .models import Resumen
 
 class ResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resumen
         fields = ['id']
-
-     # Campo para manejar la fecha de hoy
-
-    def validate(self, data):
-        # Validar que la fecha no sea futura
-        fecha_hoy = data.get('fecha_hoy', date.today())
-
-        if fecha_hoy > date.today():
-            raise serializers.ValidationError("La fecha no puede ser en el futuro.")
-
-        return data
 
 
 
