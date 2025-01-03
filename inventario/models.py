@@ -203,11 +203,7 @@ class Mantenimiento(models.Model):
     def __str__(self):
         return f"Mantenimiento: {self.producto.equipo} - {self.get_estado_display()}"
 
-    
-    
-
-
-
+#nada
 
 from django.utils.timezone import now
 
