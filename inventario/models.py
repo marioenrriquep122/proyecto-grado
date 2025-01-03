@@ -212,8 +212,7 @@ class Mantenimiento(models.Model):
 from django.utils.timezone import now
 
 class Resumen(models.Model):
-    fecha_hoy = models.DateField(default=date.today)
-
+    
     def __str__(self):
         return f"Resumen del {self.fecha_hoy} - {now().strftime('%H:%M:%S')}"
 
