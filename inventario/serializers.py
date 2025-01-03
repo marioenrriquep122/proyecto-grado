@@ -191,9 +191,9 @@ from datetime import date
 class ResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resumen
-        fields = ['id', 'fecha_hoy']
+        fields = ['id']
 
-    fecha_hoy = serializers.DateField(default=date.today)  # Campo para manejar la fecha de hoy
+     # Campo para manejar la fecha de hoy
 
     def validate(self, data):
         # Validar que la fecha no sea futura

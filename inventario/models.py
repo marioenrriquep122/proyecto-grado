@@ -213,9 +213,6 @@ from django.utils.timezone import now
 
 class Resumen(models.Model):
     fecha_hoy = models.DateField(default=date.today)
-    fecha_inicio = models.DateField(null=True, blank=True, verbose_name="Fecha de Inicio")
-    fecha_fin = models.DateField(null=True, blank=True, verbose_name="Fecha de Fin")
-    
 
     def __str__(self):
         return f"Resumen del {self.fecha_hoy} - {now().strftime('%H:%M:%S')}"
