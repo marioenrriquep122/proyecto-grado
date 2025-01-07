@@ -118,144 +118,148 @@ class EquipoMaterialViewSet(viewsets.ModelViewSet):
 
 class ReporteViewSet(viewsets.ModelViewSet):
     """
-    ViewSet para gestionar el CRUD de Reportes y generar datos dinámicos.
+    ViewSet para gestionar la generación de reportes.
     """
     queryset = Reporte.objects.all()
     serializer_class = ReporteSerializer
 
     def create(self, request, *args, **kwargs):
         """
-        Crear un reporte y devolver los datos generados dinámicamente.
+        Crear un reporte basado en el tipo y las fechas.
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         reporte = serializer.instance
-        
+
+        # Validación de rango de fechas
         if reporte.fecha_inicio and reporte.fecha_fin and reporte.fecha_inicio > reporte.fecha_fin:
             raise ValidationError("La fecha de inicio no puede ser mayor que la fecha de fin.")
 
-        
-        datos = self.generar_datos(reporte.filtro, reporte.fecha_inicio, reporte.fecha_fin)
+        # Generar datos según el tipo
+        if reporte.tipo == "general":
+            datos = self._generar_resumen(reporte.fecha_inicio, reporte.fecha_fin)
+        elif reporte.tipo == "stock":
+            datos = self._obtener_stock(reporte.fecha_inicio, reporte.fecha_fin)
+        elif reporte.tipo == "factura":
+            datos = self._obtener_facturas(reporte.fecha_inicio, reporte.fecha_fin)
+        elif reporte.tipo == "actividades":
+            datos = self._obtener_actividades(reporte.fecha_inicio, reporte.fecha_fin)
+        else:
+            datos = []
 
-        if not datos:
-            datos = [
-                {
-                    "mensaje": f"No se encontraron datos para el filtro '{reporte.filtro}' "
-                               f"entre {reporte.fecha_inicio} y {reporte.fecha_fin}."
-                }
-            ]
+        # Guardar los datos generados en el reporte
+        reporte.datos = datos
+        reporte.save()
 
-        
+        # Respuesta con los datos generados
         response_data = serializer.data
         response_data["datos"] = datos
         return Response(response_data, status=status.HTTP_201_CREATED)
 
-    def retrieve(self, request, *args, **kwargs):
+    def _generar_resumen(self, fecha_inicio=None, fecha_fin=None):
         """
-        Recuperar un reporte e incluir los datos generados dinámicamente.
+        Genera los datos del resumen general.
         """
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        resumen, created = Resumen.objects.get_or_create()
 
-        datos = self.generar_datos(instance.filtro, instance.fecha_inicio, instance.fecha_fin)
+        # Calcular los datos del resumen general
+        resumen_datos = self._calcular_datos_resumen(fecha_inicio, fecha_fin)
 
-        if not datos:
-            datos = [
-                {
-                    "mensaje": f"No se encontraron datos para el filtro '{instance.filtro}' "
-                               f"entre {instance.fecha_inicio} y {instance.fecha_fin}."
-                }
-            ]
+        return {
+            "id": resumen.id,
+            "datos": resumen_datos
+        }
 
-        response_data = serializer.data
-        response_data["datos"] = datos
-        return Response(response_data)
-
-    def update(self, request, *args, **kwargs):
+    def _calcular_datos_resumen(self, fecha_inicio=None, fecha_fin=None):
         """
-        Actualizar un reporte y regenerar los datos dinámicos.
+        Calcula los datos del resumen general, filtrando por fechas si son proporcionadas.
         """
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
+        categorias_totales = Categoria.objects.count()
+        productos_totales = EquipoMaterial.objects.count()
 
-        
-        if instance.fecha_inicio and instance.fecha_fin and instance.fecha_inicio > instance.fecha_fin:
-            raise ValidationError("La fecha de inicio no puede ser mayor que la fecha de fin.")
-
-        
-        datos = self.generar_datos(instance.filtro, instance.fecha_inicio, instance.fecha_fin)
-
-        if not datos:
-            datos = [
-                {
-                    "mensaje": f"No se encontraron datos para el filtro '{instance.filtro}' "
-                               f"entre {instance.fecha_inicio} y {instance.fecha_fin}."
-                }
-            ]
-
-        
-        response_data = serializer.data
-        response_data["datos"] = datos
-        return Response(response_data)
-
-    def generar_datos(self, filtro, fecha_inicio, fecha_fin):
-        """
-        Generar datos dinámicos según el filtro seleccionado.
-        """
-        if filtro == "facturas":
+        # Filtrar facturas y actividades por fechas si son proporcionadas
+        if fecha_inicio and fecha_fin:
+            facturas = Factura.objects.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
+            actividades = Actividad.objects.filter(fecha__range=[fecha_inicio, fecha_fin])
+        else:
             facturas = Factura.objects.all()
-            if fecha_inicio and fecha_fin:
-                facturas = facturas.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
-            return list(facturas.values("id", "producto__equipo", "cantidad", "fecha_salida", "numero_factura"))
-
-        elif filtro == "productos":
-            productos = EquipoMaterial.objects.all()
-            if fecha_inicio and fecha_fin:
-                productos = productos.filter(fecha_entrada__range=[fecha_inicio, fecha_fin])
-            return list(productos.values("id", "equipo", "marca", "serial", "cantidad", "estado", "categoria__nombre"))
-
-        elif filtro == "categorias":
-            categorias = Categoria.objects.all()
-            return list(categorias.values("id", "nombre", "descripcion"))
-
-        elif filtro == "usuarios":
-            usuarios = Usuario.objects.all()  
-            if fecha_inicio and fecha_fin:
-                usuarios = usuarios.filter(fecha_creacion__range=[fecha_inicio, fecha_fin])
-            return list(usuarios.values("id", "username", "email", "telefono", "rol", "is_active", "fecha_creacion"))
-        elif filtro == "mantenimientos":
-            mantenimientos = Mantenimiento.objects.all()
-            if fecha_inicio and fecha_fin:
-                
-                mantenimientos = mantenimientos.filter(fecha_inicio__gte=fecha_inicio, fecha_fin__lte=fecha_fin)
-            return list(mantenimientos.values("id", "producto__equipo", "estado", "fecha_inicio", "fecha_fin"))
-
-
-        elif filtro == "actividades":
             actividades = Actividad.objects.all()
-            if fecha_inicio and fecha_fin:
-                actividades = actividades.filter(fecha__range=[fecha_inicio, fecha_fin])  
-            return list(actividades.values("id", "descripcion", "fecha"))  
 
-            
-            
+        mantenimientos_totales = Mantenimiento.objects.count()
+        stock_total_disponible = EquipoMaterial.objects.aggregate(total_stock=Sum('cantidad'))['total_stock'] or 0
+        ventas_totales = facturas.aggregate(total_ventas=Sum(F('cantidad') * F('producto__valor')))['total_ventas'] or 0
 
-        return []
+        return {
+            "total_categorias": categorias_totales,
+            "total_productos": productos_totales,
+            "total_facturas": facturas.count(),
+            "total_actividades": actividades.count(),
+            "total_mantenimientos": mantenimientos_totales,
+            "stock_total_disponible": stock_total_disponible,
+            "ventas_totales": ventas_totales,
+        }
 
-    def destroy(self, request, *args, **kwargs):
+    def _obtener_stock(self, fecha_inicio=None, fecha_fin=None):
         """
-        Personaliza la respuesta al eliminar un reporte.
+        Obtiene los productos (stock) en el rango de fechas, si se especifican.
         """
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response(
-            {"message": f"El reporte con ID {instance.id} fue eliminado exitosamente."},
-            status=status.HTTP_200_OK
-        )
+        productos = EquipoMaterial.objects.all()
+        if fecha_inicio and fecha_fin:
+            productos = productos.filter(fecha_entrada__range=[fecha_inicio, fecha_fin])
+
+        # Convertir productos a un formato serializable
+        return [
+            {
+                "id": producto.id,
+                "equipo": producto.equipo,
+                "marca": producto.marca,
+                "cantidad": producto.cantidad,
+                "estado": producto.estado,
+            }
+            for producto in productos
+        ]
+
+    def _obtener_facturas(self, fecha_inicio=None, fecha_fin=None):
+        """
+        Obtiene las facturas en el rango de fechas, si se especifican.
+        """
+        facturas = Factura.objects.all()
+        if fecha_inicio and fecha_fin:
+            facturas = facturas.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
+
+        # Convertir facturas a un formato serializable
+        return [
+            {
+                "id": factura.id,
+                "producto": factura.producto.equipo,
+                "cantidad": factura.cantidad,
+                "fecha_salida": factura.fecha_salida.isoformat(),
+                "numero_factura": factura.numero_factura,
+            }
+            for factura in facturas
+        ]
+
+    def _obtener_actividades(self, fecha_inicio=None, fecha_fin=None):
+        """
+        Obtiene las actividades en el rango de fechas, si se especifican.
+        """
+        actividades = Actividad.objects.all()
+        if fecha_inicio and fecha_fin:
+            actividades = actividades.filter(fecha__range=[fecha_inicio, fecha_fin])
+
+        # Convertir actividades a un formato serializable
+        return [
+            {
+                "id": actividad.id,
+                "tipo": actividad.get_tipo_display(),
+                "descripcion": actividad.descripcion,
+                "fecha": actividad.fecha.isoformat(),
+                "factura": actividad.factura.numero_factura if actividad.factura else None,
+            }
+            for actividad in actividades
+        ]
+
 
 
 

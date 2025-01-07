@@ -27,8 +27,9 @@ class EquipoMaterialSerializer(serializers.ModelSerializer):
 class ReporteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reporte
-        fields = ['id', 'tipo', 'filtro', 'fecha_inicio', 'fecha_fin', 'datos']
+        fields = ['id', 'tipo', 'fecha_inicio', 'fecha_fin', 'datos']
         read_only_fields = ['datos']
+
         
         
 

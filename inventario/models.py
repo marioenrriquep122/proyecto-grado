@@ -79,39 +79,23 @@ class EquipoMaterial(models.Model):
 class Reporte(models.Model):
     TIPO_REPORTE_CHOICES = [
         ('general', 'Reporte General'),
-        ('personalizado', 'Reporte Personalizado'),
-        ('estadistico', 'Reporte Estadístico'),
-        ('operativo', 'Reporte Operativo'),
-        ('financiero', 'Reporte Financiero'),
-            
-    ]
-
-    FILTRO_CHOICES = [
-        ('facturas', 'Facturas'),
-        ('productos', 'Productos'),
-        ('categorias', 'Categorías'),
-        ('usuarios', 'Usuarios'),
-        ('actividades', 'Actividades'),
-        ('mantenimientos', 'Mantenimientos'),
+        ('stock', 'Reporte de Stock'),
+        ('factura', 'Reporte de Facturas'),
+        ('actividades', 'Reporte de Actividades'),
     ]
 
     tipo = models.CharField(
-        max_length=50, 
-        choices=TIPO_REPORTE_CHOICES, 
-        default='general', 
+        max_length=50,
+        choices=TIPO_REPORTE_CHOICES,
         verbose_name="Tipo de Reporte"
-    )
-    filtro = models.CharField(
-        max_length=50, 
-        choices=FILTRO_CHOICES, 
-        verbose_name="Filtro de Datos"
     )
     fecha_inicio = models.DateField(null=True, blank=True, verbose_name="Fecha de Inicio")
     fecha_fin = models.DateField(null=True, blank=True, verbose_name="Fecha de Fin")
     datos = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
-        return f"{self.get_tipo_display()} - {self.get_filtro_display()}"
+        return f"{self.get_tipo_display()} - {self.fecha_inicio} a {self.fecha_fin}"
+
     
     
     
@@ -205,14 +189,6 @@ class Mantenimiento(models.Model):
 
 #nada
 
-
-
-from django.db import models
-from django.utils.timezone import now
-
-
-
-from django.db import models
 
 
 
