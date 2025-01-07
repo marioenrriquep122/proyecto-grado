@@ -259,8 +259,91 @@ class ReporteViewSet(viewsets.ModelViewSet):
             }
             for actividad in actividades
         ]
+    def update(self, request, *args, **kwargs):
+        """
+        Actualizar un reporte y regenerar los datos dinámicamente.
+        """
+        partial = kwargs.pop('partial', False)  # Permitir actualizaciones parciales (PATCH)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
 
+        # Validar fechas
+        if instance.fecha_inicio and instance.fecha_fin and instance.fecha_inicio > instance.fecha_fin:
+            raise ValidationError("La fecha de inicio no puede ser mayor que la fecha de fin.")
 
+        # Regenerar los datos según el tipo
+        if instance.tipo == "general":
+            datos = self._generar_resumen(instance.fecha_inicio, instance.fecha_fin)
+        elif instance.tipo == "stock":
+            datos = self._obtener_stock(instance.fecha_inicio, instance.fecha_fin)
+        elif instance.tipo == "factura":
+            datos = self._obtener_facturas(instance.fecha_inicio, instance.fecha_fin)
+        elif instance.tipo == "actividades":
+            datos = self._obtener_actividades(instance.fecha_inicio, instance.fecha_fin)
+        else:
+            datos = []
+
+        # Guardar los datos actualizados
+        instance.datos = datos
+        instance.save()
+
+        # Incluir los datos actualizados en la respuesta
+        response_data = serializer.data
+        response_data["datos"] = datos
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    def _generar_resumen(self, fecha_inicio=None, fecha_fin=None):
+        """
+        Genera los datos del resumen general.
+        """
+        resumen, created = Resumen.objects.get_or_create()
+
+        # Calcular los datos del resumen general
+        resumen_datos = self._calcular_datos_resumen(fecha_inicio, fecha_fin)
+
+        return {
+            "id": resumen.id,
+            "datos": resumen_datos
+        }
+
+    def _calcular_datos_resumen(self, fecha_inicio=None, fecha_fin=None):
+        """
+        Calcula los datos del resumen general, filtrando por fechas si son proporcionadas.
+        """
+        categorias_totales = Categoria.objects.count()
+        productos_totales = EquipoMaterial.objects.count()
+
+        # Filtrar facturas y actividades por fechas si son proporcionadas
+        if fecha_inicio and fecha_fin:
+            facturas = Factura.objects.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
+            actividades = Actividad.objects.filter(fecha__range=[fecha_inicio, fecha_fin])
+        else:
+            facturas = Factura.objects.all()
+            actividades = Actividad.objects.all()
+
+        mantenimientos_totales = Mantenimiento.objects.count()
+        stock_total_disponible = EquipoMaterial.objects.aggregate(total_stock=Sum('cantidad'))['total_stock'] or 0
+
+        # Convertir `ventas_totales` a float
+        ventas_totales = facturas.aggregate(
+            total_ventas=Sum(F('cantidad') * F('producto__valor'))
+        )['total_ventas'] or 0
+
+        # Asegurarse de que los valores sean flotantes
+        ventas_totales = float(ventas_totales)
+        stock_total_disponible = float(stock_total_disponible)
+
+        return {
+            "total_categorias": categorias_totales,
+            "total_productos": productos_totales,
+            "total_facturas": facturas.count(),
+            "total_actividades": actividades.count(),
+            "total_mantenimientos": mantenimientos_totales,
+            "stock_total_disponible": stock_total_disponible,  # Ahora es float
+            "ventas_totales": ventas_totales,  # Ahora es float
+        }
 
 
 # --- Factura ---
