@@ -62,34 +62,41 @@ class EquipoMaterialViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]  # Cambia según necesidad
 
     def create(self, request, *args, **kwargs):
-       
-        categoria_id = request.data.get('categoria')
+        # Hacer una copia mutable de request.data
+        mutable_data = request.data.copy()
+
+        categoria_id = mutable_data.get('categoria')
         if not categoria_id:
             raise ValidationError("El producto debe pertenecer a una categoría.")
 
         if not Categoria.objects.filter(id=categoria_id).exists():
             raise ValidationError("La categoría especificada no existe.")
 
-        
-        serial = request.data.get('serial')
+        serial = mutable_data.get('serial')
         if EquipoMaterial.objects.filter(serial=serial).exists():
             raise ValidationError(f"El número de serie ya está en uso: {serial}.")
 
-        
-        stock = request.data.get('cantidad', 0)
+        stock = mutable_data.get('cantidad', 0)
         if int(stock) > 0:
-            request.data['estado'] = 'disponible'
+            mutable_data['estado'] = 'disponible'
         else:
-            request.data['estado'] = 'retirado'
+            mutable_data['estado'] = 'retirado'
 
+        # Reemplaza el data original con el mutable antes de pasar al super
+        request._full_data = mutable_data
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
+        # Hacer una copia mutable de request.data
+        mutable_data = request.data.copy()
+
         instance = self.get_object()
-        serial = request.data.get('serial')
+        serial = mutable_data.get('serial')
         if serial and EquipoMaterial.objects.filter(serial=serial).exclude(id=instance.id).exists():
             raise ValidationError(f"El número de serie ya está en uso: {serial}.")
 
+        # Reemplaza el data original con el mutable antes de pasar al super
+        request._full_data = mutable_data
         return super().update(request, *args, **kwargs)
 
     @action(detail=False, methods=['get'])
@@ -110,6 +117,7 @@ class EquipoMaterialViewSet(viewsets.ModelViewSet):
         items = self.queryset.filter(estado='en_mantenimiento')
         serializer = self.get_serializer(items, many=True)
         return Response(serializer.data)
+
 
    
 
