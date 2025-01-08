@@ -7,7 +7,7 @@ from django.forms import ValidationError
 
 
 
-# Modelo para Categoría
+# Modelo para Categoría---
 class Categoria(models.Model):
     nombre = models.CharField(max_length=100, unique=True, verbose_name="Nombre de la categoría")
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
