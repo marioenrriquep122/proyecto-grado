@@ -113,6 +113,13 @@ class Factura(models.Model):
         verbose_name="Número de Factura"
     )
 
+    
+    nombre_cliente = models.CharField(max_length=100, verbose_name="Nombre del Cliente")
+    compania_cliente = models.CharField(max_length=100, verbose_name="Compañía del Cliente", blank=True, null=True)
+    direccion = models.CharField(max_length=255, verbose_name="Dirección", blank=True, null=True)
+    barrio = models.CharField(max_length=100, verbose_name="Barrio", blank=True, null=True)
+    telefono = models.CharField(max_length=15, verbose_name="Teléfono", blank=True, null=True)
+
     def save(self, *args, **kwargs):
         if not self.numero_factura:
             self.numero_factura = f"FAC-{random.randint(10000, 99999)}"
@@ -120,6 +127,7 @@ class Factura(models.Model):
 
     def __str__(self):
         return f"Factura {self.numero_factura} - Producto: {self.producto.equipo}"
+
 
 
 

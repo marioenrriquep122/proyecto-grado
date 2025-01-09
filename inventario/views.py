@@ -227,11 +227,9 @@ class ReporteViewSet(viewsets.ModelViewSet):
             }
             for producto in productos
         ]
-
+        
     def _obtener_facturas(self, fecha_inicio=None, fecha_fin=None):
-        """
-        Obtiene las facturas en el rango de fechas, si se especifican.
-        """
+    
         facturas = Factura.objects.all()
         if fecha_inicio and fecha_fin:
             facturas = facturas.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
@@ -244,9 +242,15 @@ class ReporteViewSet(viewsets.ModelViewSet):
                 "cantidad": factura.cantidad,
                 "fecha_salida": factura.fecha_salida.isoformat(),
                 "numero_factura": factura.numero_factura,
+                "valor": float(factura.producto.valor),  # Convertir Decimal a float
+                "total": float(factura.cantidad * factura.producto.valor),  # Convertir total a float
+                "stock_restante": factura.producto.cantidad,  # Stock restante después de la factura
             }
             for factura in facturas
         ]
+
+
+
 
     def _obtener_actividades(self, fecha_inicio=None, fecha_fin=None):
         """
@@ -357,7 +361,7 @@ class ReporteViewSet(viewsets.ModelViewSet):
 # --- Factura ---
 class FacturaViewSet(viewsets.ModelViewSet):
     """
-    ViewSet para gestionar el CRUD de facturas.
+    ViewSet para gestionar el CRUD de facturas, incluyendo los nuevos campos del cliente.
     """
     queryset = Factura.objects.all()
     serializer_class = FacturaSerializer
@@ -365,6 +369,7 @@ class FacturaViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """
         Valida que el producto esté disponible y ajusta el stock al crear una factura.
+        Maneja también los campos relacionados con el cliente.
         """
         producto_id = request.data.get('producto')
         cantidad = int(request.data.get('cantidad', 0))
@@ -373,25 +378,21 @@ class FacturaViewSet(viewsets.ModelViewSet):
         except EquipoMaterial.DoesNotExist:
             raise ValidationError("El producto especificado no existe.")
 
-        
         if producto.estado != 'disponible':
             raise ValidationError(f"No se puede crear la factura porque el producto '{producto.equipo}' no está disponible (Estado actual: {producto.estado}).")
 
-        
         if producto.cantidad < cantidad:
             raise ValidationError(f"No hay suficiente stock del producto '{producto.equipo}'. Stock disponible: {producto.cantidad}, solicitado: {cantidad}.")
 
-        
         producto.cantidad -= cantidad
         if producto.cantidad == 0:
-            producto.estado = 'retirado'  
+            producto.estado = 'retirado'
         producto.save()
 
         
         response = super().create(request, *args, **kwargs)
         factura = Factura.objects.get(id=response.data['id'])
 
-        
         descripcion = (
             f"Factura {factura.numero_factura} creada para la venta de {producto.equipo}. "
             f"Cantidad: {factura.cantidad} unidades. Total: ${factura.cantidad * producto.valor:.2f}."
@@ -406,7 +407,7 @@ class FacturaViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         """
-        Ajusta el stock del producto al actualizar una factura.
+        Ajusta el stock del producto y actualiza la información del cliente al actualizar una factura.
         """
         factura = self.get_object()
         producto = factura.producto
@@ -419,14 +420,22 @@ class FacturaViewSet(viewsets.ModelViewSet):
         if producto.cantidad < nueva_cantidad:
             raise ValidationError(f"No hay suficiente stock para actualizar esta factura. Stock disponible: {producto.cantidad}, solicitado: {nueva_cantidad}.")
 
+        
         producto.cantidad -= nueva_cantidad
         if producto.cantidad == 0:
-            producto.estado = 'retirado'  
+            producto.estado = 'retirado'
         elif producto.estado == 'retirado':
-            producto.estado = 'disponible' 
+            producto.estado = 'disponible'
         producto.save()
 
         
+        factura.nombre_cliente = request.data.get('nombre_cliente', factura.nombre_cliente)
+        factura.compania_cliente = request.data.get('compania_cliente', factura.compania_cliente)
+        factura.direccion = request.data.get('direccion', factura.direccion)
+        factura.barrio = request.data.get('barrio', factura.barrio)
+        factura.telefono = request.data.get('telefono', factura.telefono)
+        factura.save()
+
         descripcion = (
             f"Factura {factura.numero_factura} actualizada. Producto: {producto.equipo}, "
             f"Cantidad: {nueva_cantidad} unidades, Total: ${nueva_cantidad * producto.valor:.2f}."
@@ -446,13 +455,14 @@ class FacturaViewSet(viewsets.ModelViewSet):
         factura = self.get_object()
         producto = factura.producto
 
-        
+        # Revertir el stock
         producto.cantidad += factura.cantidad
-        if producto.estado == 'retirado':  
+        if producto.estado == 'retirado':
             producto.estado = 'disponible'
         producto.save()
 
         return super().destroy(request, *args, **kwargs)
+
 
 
 

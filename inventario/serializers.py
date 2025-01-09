@@ -34,11 +34,11 @@ class ReporteSerializer(serializers.ModelSerializer):
         
 
 class FacturaSerializer(serializers.ModelSerializer):
-    # Campos calculados
+    
     total = serializers.SerializerMethodField(help_text="Total calculado basado en la cantidad y el valor unitario")
     stock_restante = serializers.SerializerMethodField(help_text="Stock restante del producto después de la factura")
 
-    # Campos relacionados con el producto
+    
     numero_factura = serializers.ReadOnlyField()
     equipo = serializers.ReadOnlyField(source="producto.equipo")
     referencia = serializers.ReadOnlyField(source="producto.referencia")
@@ -49,6 +49,13 @@ class FacturaSerializer(serializers.ModelSerializer):
     valor = serializers.ReadOnlyField(source="producto.valor")
     estado = serializers.ReadOnlyField(source="producto.estado")
     observaciones = serializers.ReadOnlyField(source="producto.observaciones")
+
+    
+    nombre_cliente = serializers.CharField(max_length=100)
+    compania_cliente = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    direccion = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    barrio = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    telefono = serializers.CharField(max_length=15, required=False, allow_blank=True)
 
     class Meta:
         model = Factura
@@ -67,8 +74,13 @@ class FacturaSerializer(serializers.ModelSerializer):
             'estado',
             'observaciones',
             'valor',
-            'total',  
-            'stock_restante'  
+            'total',
+            'stock_restante',
+            'nombre_cliente',
+            'compania_cliente',
+            'direccion',
+            'barrio',
+            'telefono',
         ]
 
     # Métodos para los campos calculados
@@ -109,29 +121,38 @@ class FacturaSerializer(serializers.ModelSerializer):
         """
         Al actualizar una factura, ajusta el stock del producto.
         """
-        producto = instance.producto  # Producto relacionado con la factura
+        producto = instance.producto  
         nueva_cantidad = validated_data.get('cantidad', instance.cantidad)
-        cantidad_anterior = instance.cantidad  # Cantidad antes de actualizar
+        cantidad_anterior = instance.cantidad  
 
-        # Calcula la diferencia de stock
+        
         diferencia = nueva_cantidad - cantidad_anterior
 
-        if diferencia > 0:  # Si se aumenta la cantidad, verificamos el stock
+        if diferencia > 0:  
             if producto.cantidad < diferencia:
                 raise serializers.ValidationError("No hay suficiente stock disponible para esta cantidad.")
-            producto.cantidad -= diferencia  # Reducimos el stock
+            producto.cantidad -= diferencia  
 
-        elif diferencia < 0:  # Si se reduce la cantidad, devolvemos stock
+        elif diferencia < 0:  
             producto.cantidad += abs(diferencia)
 
-        producto.save()  # Guardar cambios en el stock
+        producto.save()  
 
-        # Actualizamos los datos de la factura
+        
         instance.cantidad = nueva_cantidad
         instance.fecha_salida = validated_data.get('fecha_salida', instance.fecha_salida)
+
+        
+        instance.nombre_cliente = validated_data.get('nombre_cliente', instance.nombre_cliente)
+        instance.compania_cliente = validated_data.get('compania_cliente', instance.compania_cliente)
+        instance.direccion = validated_data.get('direccion', instance.direccion)
+        instance.barrio = validated_data.get('barrio', instance.barrio)
+        instance.telefono = validated_data.get('telefono', instance.telefono)
+
         instance.save()
 
         return instance
+
     
 
 class ActividadSerializer(serializers.ModelSerializer):
