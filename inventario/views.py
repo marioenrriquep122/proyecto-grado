@@ -327,7 +327,6 @@ class ReporteViewSet(viewsets.ModelViewSet):
         categorias_totales = Categoria.objects.count()
         productos_totales = EquipoMaterial.objects.count()
 
-        # Filtrar facturas y actividades por fechas si son proporcionadas
         if fecha_inicio and fecha_fin:
             facturas = Factura.objects.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
             actividades = Actividad.objects.filter(fecha__range=[fecha_inicio, fecha_fin])
@@ -335,17 +334,23 @@ class ReporteViewSet(viewsets.ModelViewSet):
             facturas = Factura.objects.all()
             actividades = Actividad.objects.all()
 
+        if not facturas.exists() and not actividades.exists():
+            return {
+                "mensaje": "No se encontraron datos para el rango de fechas proporcionado.",
+                "total_categorias": categorias_totales,
+                "total_productos": productos_totales,
+                "total_facturas": 0,
+                "total_actividades": 0,
+                "total_mantenimientos": 0,
+                "stock_total_disponible": 0.0,
+                "ventas_totales": 0.0,
+            }
+
         mantenimientos_totales = Mantenimiento.objects.count()
         stock_total_disponible = EquipoMaterial.objects.aggregate(total_stock=Sum('cantidad'))['total_stock'] or 0
-
-        # Convertir `ventas_totales` a float
         ventas_totales = facturas.aggregate(
             total_ventas=Sum(F('cantidad') * F('producto__valor'))
         )['total_ventas'] or 0
-
-        # Asegurarse de que los valores sean flotantes
-        ventas_totales = float(ventas_totales)
-        stock_total_disponible = float(stock_total_disponible)
 
         return {
             "total_categorias": categorias_totales,
@@ -353,9 +358,73 @@ class ReporteViewSet(viewsets.ModelViewSet):
             "total_facturas": facturas.count(),
             "total_actividades": actividades.count(),
             "total_mantenimientos": mantenimientos_totales,
-            "stock_total_disponible": stock_total_disponible,  # Ahora es float
-            "ventas_totales": ventas_totales,  # Ahora es float
+            "stock_total_disponible": float(stock_total_disponible),
+            "ventas_totales": float(ventas_totales),
         }
+        
+        
+    def _obtener_stock(self, fecha_inicio=None, fecha_fin=None):
+        productos = EquipoMaterial.objects.all()
+        if fecha_inicio and fecha_fin:
+            productos = productos.filter(fecha_entrada__range=[fecha_inicio, fecha_fin])
+
+        if not productos.exists():
+            return {"mensaje": "No se encontraron productos (stock) en el rango de fechas proporcionado."}
+
+        return [
+            {
+                "id": producto.id,
+                "equipo": producto.equipo,
+                "marca": producto.marca,
+                "cantidad": producto.cantidad,
+                "estado": producto.estado,
+            }
+            for producto in productos
+        ]
+        
+    def _obtener_facturas(self, fecha_inicio=None, fecha_fin=None):
+        facturas = Factura.objects.all()
+        if fecha_inicio and fecha_fin:
+            facturas = facturas.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
+
+        if not facturas.exists():
+            return {"mensaje": "No se encontraron facturas en el rango de fechas proporcionado."}
+
+        return [
+            {
+                "id": factura.id,
+                "producto": factura.producto.equipo,
+                "cantidad": factura.cantidad,
+                "fecha_salida": factura.fecha_salida.isoformat(),
+                "numero_factura": factura.numero_factura,
+                "valor": float(factura.producto.valor),
+                "total": float(factura.cantidad * factura.producto.valor),
+                "stock_restante": factura.producto.cantidad,
+            }
+            for factura in facturas
+        ]
+    def _obtener_actividades(self, fecha_inicio=None, fecha_fin=None):
+        actividades = Actividad.objects.all()
+        if fecha_inicio and fecha_fin:
+            actividades = actividades.filter(fecha__range=[fecha_inicio, fecha_fin])
+
+        if not actividades.exists():
+            return {"mensaje": "No se encontraron actividades en el rango de fechas proporcionado."}
+
+        return [
+            {
+                "id": actividad.id,
+                "tipo": actividad.get_tipo_display(),
+                "descripcion": actividad.descripcion,
+                "fecha": actividad.fecha.isoformat(),
+                "factura": actividad.factura.numero_factura if actividad.factura else None,
+            }
+            for actividad in actividades
+        ]
+
+
+
+
 
 
 # --- Factura ---
