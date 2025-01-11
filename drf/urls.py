@@ -5,5 +5,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),  # Rutas para el panel de administración
     path('api/usuarios/', include('usuarios.urls')),  # Rutas de la aplicación "usuarios"
     path('api/inventario/', include('inventario.urls')),  # Rutas de la aplicación "inventario"
-    path('api/pedidos/', include('pedidos.urls')), 
+    
 ]
