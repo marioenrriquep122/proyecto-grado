@@ -1044,3 +1044,36 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 {"success": False, "message": f"Error al aprobar el pedido: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
+    @action(detail=True, methods=['put'], url_path='terminar')
+    def terminar(self, request, pk=None):
+        try:
+            # Obtener el pedido
+            pedido = self.get_object()
+
+            # Verificar que el estado actual sea 'en_proceso'
+            if pedido.estado != 'en_proceso':
+                return Response(
+                    {"success": False, "message": "El pedido no está en estado 'en_proceso' para ser terminado."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Cambiar el estado del pedido a 'terminado'
+            pedido.estado = 'terminado'
+            pedido.save()
+
+            return Response(
+                {"success": True, "message": "Pedido marcado como 'terminado' exitosamente.", "pedido": PedidoSerializer(pedido).data},
+                status=status.HTTP_200_OK
+            )
+
+        except Pedido.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Pedido no encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "message": f"Error al marcar el pedido como 'terminado': {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
