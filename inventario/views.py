@@ -1009,3 +1009,38 @@ class PedidoViewSet(viewsets.ModelViewSet):
             {"success": True, "categoria": categoria.nombre, "productos": serializer.data}
         )
 
+
+
+    # Acción personalizada para aprobar un pedido
+    @action(detail=True, methods=['put'], url_path='aprobar')
+    def aprobar(self, request, pk=None):
+        try:
+            # Obtener el pedido
+            pedido = self.get_object()
+
+            # Verificar que el estado actual sea 'disponible'
+            if pedido.estado != 'disponible':
+                return Response(
+                    {"success": False, "message": "El pedido no está en estado 'disponible' para ser aprobado."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Cambiar el estado del pedido a 'en_proceso'
+            pedido.estado = 'en_proceso'
+            pedido.save()
+
+            return Response(
+                {"success": True, "message": "Pedido aprobado exitosamente.", "pedido": PedidoSerializer(pedido).data},
+                status=status.HTTP_200_OK
+            )
+
+        except Pedido.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Pedido no encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "message": f"Error al aprobar el pedido: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
