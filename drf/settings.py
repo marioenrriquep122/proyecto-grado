@@ -101,9 +101,9 @@ WSGI_APPLICATION = 'drf.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'inventario',  
+        'NAME': 'inventarios',  
         'USER': 'postgres', 
-        'PASSWORD': 'admin',  
+        'PASSWORD': '1234',  
         'HOST': 'localhost',
         'PORT': '5432',
     }
