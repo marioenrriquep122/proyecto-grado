@@ -66,15 +66,6 @@ class EquipoMaterial(models.Model):
         return f"{self.equipo} - {self.marca} ({self.serial})"
 
 
-
-
-        
-    
-
-
-
-
-
 # Modelo para Reporte
 class Reporte(models.Model):
     TIPO_REPORTE_CHOICES = [
@@ -133,23 +124,45 @@ class Factura(models.Model):
 
 
 
-#modelo de factura
+#modelo de actividad
 
 class Actividad(models.Model):
     TIPO_CHOICES = [
-        ('venta', 'Venta realizada'),
-        ('actualizacion', 'Producto actualizado'),
-        ('factura', 'Factura emitida'),
-        ('otro', 'Otro tipo de actividad'),
+        ('categoria', 'Categoría'),
+        ('producto', 'Producto'),
+        ('factura', 'Factura'),
+        ('pedido', 'Pedido'),
+        ('mantenimiento', 'Mantenimiento'),
+        ('resumen', 'Resumen'),
+        ('reporte', 'Reporte'),
     ]
 
     tipo = models.CharField(max_length=50, choices=TIPO_CHOICES, verbose_name="Tipo de Actividad")
-    factura = models.ForeignKey('Factura', on_delete=models.SET_NULL, null=True, blank=True, related_name='actividades', verbose_name="Factura relacionada")
-    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción de la Actividad")
+    descripcion = models.TextField(verbose_name="Descripción de la Actividad")
     fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de la Actividad")
+    
+    # Campo para categoría
+    nombre = models.CharField(max_length=255, null=True, blank=True, verbose_name="Nombre Asociado")  
+    
+    # Campos de producto
+    equipo = models.CharField(max_length=255, null=True, blank=True, verbose_name="Equipo")  
+    marca = models.CharField(max_length=255, null=True, blank=True, verbose_name="Marca")    
+    cantidad = models.IntegerField(null=True, blank=True, verbose_name="Cantidad")          
+    valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor")
+    
+    # Campos específicos de factura
+    valor_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor Total")
+    numero_factura = models.CharField(max_length=50, null=True, blank=True, verbose_name="Número de Factura")
+    nombre_cliente = models.CharField(max_length=255, null=True, blank=True, verbose_name="Nombre del Cliente")
+
+    
 
     def __str__(self):
-        return f"{self.get_tipo_display()} - {self.factura.numero_factura if self.factura else 'Sin factura'}"
+        return f"[{self.tipo}] {self.descripcion[:30]} ({self.fecha})"
+
+
+
+
     
     
     #mantenimiento 
@@ -203,6 +216,61 @@ class Mantenimiento(models.Model):
 class Resumen(models.Model):
     def __str__(self):
         return "Resumen único del sistema"
+    
+    
+
+
+class Pedido(models.Model):
+    ESTADO_CHOICES = [
+        ('disponible', 'Disponible'),
+        ('no_disponible', 'No Disponible'),
+        ('en_proceso', 'En Proceso'),
+        ('terminado', 'Terminado'),
+    ]
+
+    # Información del cliente
+    nombre_cliente = models.CharField(max_length=255, verbose_name="Nombre del Cliente")
+    telefono = models.CharField(max_length=15, verbose_name="Teléfono")
+    correo = models.EmailField(verbose_name="Correo Electrónico")
+    direccion = models.TextField(verbose_name="Dirección")
+    barrio = models.CharField(max_length=255, verbose_name="Barrio")
+    nombre_compania = models.CharField(max_length=255, verbose_name="Nombre de la Compañía")
+
+    # Relación con categorías y productos
+    categoria = models.ForeignKey(
+        'Categoria',
+        on_delete=models.CASCADE,
+        related_name='pedidos',
+        verbose_name="Categoría"
+    )
+    producto = models.ForeignKey(
+        'EquipoMaterial',
+        on_delete=models.CASCADE,
+        related_name='pedidos',
+        verbose_name="Producto"
+    )
+
+    # Información adicional
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
+    fecha_reserva = models.DateField(verbose_name="Fecha de Reserva")
+    fecha_inicio = models.DateField(verbose_name="Fecha de Inicio")
+    fecha_fin = models.DateField(verbose_name="Fecha de Fin")
+    cantidad = models.PositiveIntegerField(verbose_name="Cantidad")
+
+    # Estado del pedido
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='disponible',
+        verbose_name="Estado del Pedido"
+    )
+
+    def __str__(self):
+        return f"Pedido de {self.nombre_cliente} ({self.estado})"
+
+
+
+
 
 
 

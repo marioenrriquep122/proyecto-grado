@@ -156,21 +156,82 @@ class FacturaSerializer(serializers.ModelSerializer):
     
 
 class ActividadSerializer(serializers.ModelSerializer):
-    tipo_display = serializers.CharField(source='get_tipo_display', read_only=True)
-    factura_numero = serializers.CharField(source='factura.numero_factura', read_only=True)
-
     class Meta:
         model = Actividad
         fields = [
-            'id',
-            'tipo',           
-            'tipo_display',   
-            'factura',        
-            'factura_numero',
-            'descripcion',    
-            'fecha',          
+            'id', 'tipo', 'descripcion', 'fecha', 'nombre', 'equipo', 'marca', 'cantidad',
+            'valor', 'valor_total', 'numero_factura', 'nombre_cliente'
         ]
-        
+
+    def to_representation(self, instance):
+        """
+        Mostrar campos específicos según el tipo de actividad.
+        """
+        data = super().to_representation(instance)
+
+        if instance.tipo == 'categoria':
+            # Solo mostrar datos relevantes para categorías
+            return {
+                'id': data['id'],
+                'tipo': data['tipo'],
+                'descripcion': data['descripcion'],
+                'fecha': data['fecha'],
+                'nombre': data.get('nombre'),
+            }
+
+        elif instance.tipo == 'producto':
+            # Solo mostrar datos relevantes para productos
+            return {
+                'id': data['id'],
+                'tipo': data['tipo'],
+                'descripcion': data['descripcion'],
+                'fecha': data['fecha'],
+                'equipo': data.get('equipo'),
+                'marca': data.get('marca'),
+                'cantidad': data.get('cantidad'),
+                'valor': data.get('valor'),
+            }
+
+        elif instance.tipo == 'factura':
+            # Solo mostrar datos relevantes para facturas
+            return {
+                'id': data['id'],
+                'tipo': data['tipo'],
+                'descripcion': data['descripcion'],
+                'fecha': data['fecha'],
+                'numero_factura': data.get('numero_factura'),
+                'nombre_cliente': data.get('nombre_cliente'),
+                'cantidad': data.get('cantidad'),
+                'valor': data.get('valor'),
+                'valor_total': data.get('valor_total'),
+            }
+
+        elif instance.tipo == 'mantenimiento':
+            # Solo mostrar datos relevantes para mantenimiento
+            return {
+                'id': data['id'],
+                'tipo': data['tipo'],
+                'descripcion': data['descripcion'],
+                'fecha': data['fecha'],
+                'equipo': data.get('equipo'),
+            }
+            
+        elif instance.tipo == 'reporte':
+            # Solo mostrar campos relevantes para reportes
+            return {
+                'id': data['id'],
+                'tipo': data['tipo'],
+                'descripcion': "Se ha generado un reporte.",
+                'fecha': data['fecha'],
+            }
+
+        # Devolver todos los datos para tipos no especificados
+        return data
+
+
+
+
+
         
       
 
@@ -215,6 +276,25 @@ class ResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resumen
         fields = ['id']
+
+
+
+from rest_framework import serializers
+from .models import Pedido
+
+class PedidoSerializer(serializers.ModelSerializer):
+    categoria_nombre = serializers.CharField(source='categoria.nombre', read_only=True)
+    producto_nombre = serializers.CharField(source='producto.equipo', read_only=True)
+
+    class Meta:
+        model = Pedido
+        fields = [
+            'id', 'nombre_cliente', 'telefono', 'correo', 'direccion', 'barrio', 
+            'nombre_compania', 'descripcion', 'fecha_reserva', 'fecha_inicio', 
+            'fecha_fin', 'cantidad', 'estado', 'categoria', 'producto', 
+            'categoria_nombre', 'producto_nombre'
+        ]
+
 
 
 
