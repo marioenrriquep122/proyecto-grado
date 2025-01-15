@@ -47,19 +47,12 @@ class EquipoMaterial(models.Model):
         default='disponible',
         verbose_name="Estado del equipo"
     )
-    poliza = models.BooleanField(default=False, verbose_name="¿Tiene póliza?")
-    valor_factura_asociada = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="Valor de la factura")
-    factura = models.ForeignKey(
-        'Factura',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='productos',
-        verbose_name="Factura asociada"
-    )
 
     @property
     def esta_en_mantenimiento(self):
+        """
+        Verifica si el producto está marcado como en mantenimiento.
+        """
         return self.estado == 'en_mantenimiento'
 
     def save(self, *args, **kwargs):
@@ -71,8 +64,6 @@ class EquipoMaterial(models.Model):
 
     def __str__(self):
         return f"{self.equipo} - {self.marca} ({self.serial})"
-
-
 
 
 # Modelo para Reporte
@@ -102,6 +93,9 @@ class Reporte(models.Model):
 
 #modelo de factura 
 class Factura(models.Model):
+    producto = models.ForeignKey('EquipoMaterial', on_delete=models.CASCADE, related_name="facturas")
+    cantidad = models.PositiveIntegerField(verbose_name="Cantidad", default=1)
+    fecha_salida = models.DateField(verbose_name="Fecha de Salida", null=True, blank=True)
     numero_factura = models.CharField(
         max_length=20,
         unique=True,
@@ -109,8 +103,8 @@ class Factura(models.Model):
         null=True,
         verbose_name="Número de Factura"
     )
-    cantidad = models.PositiveIntegerField(verbose_name="Cantidad", default=1)
-    fecha_salida = models.DateField(verbose_name="Fecha de Salida", null=True, blank=True)
+
+    
     nombre_cliente = models.CharField(max_length=100, verbose_name="Nombre del Cliente")
     compania_cliente = models.CharField(max_length=100, verbose_name="Compañía del Cliente", blank=True, null=True)
     direccion = models.CharField(max_length=255, verbose_name="Dirección", blank=True, null=True)
@@ -123,8 +117,7 @@ class Factura(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Factura {self.numero_factura} - Cliente: {self.nombre_cliente}"
-
+        return f"Factura {self.numero_factura} - Producto: {self.producto.equipo}"
 
 
 
