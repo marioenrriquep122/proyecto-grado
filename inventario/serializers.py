@@ -10,8 +10,7 @@ class CategoriaSerializer(serializers.ModelSerializer):
 
 class EquipoMaterialSerializer(serializers.ModelSerializer):
     esta_en_mantenimiento = serializers.SerializerMethodField()
-    # categoria = serializers.CharField(source='categoria.nombre', read_only=True)
-    
+    fecha_salida = serializers.SerializerMethodField()
 
     class Meta:
         model = EquipoMaterial
@@ -19,6 +18,10 @@ class EquipoMaterialSerializer(serializers.ModelSerializer):
 
     def get_esta_en_mantenimiento(self, obj):
         return obj.esta_en_mantenimiento
+
+    def get_fecha_salida(self, obj):
+        # Asegúrate de que obj.factura no sea None antes de acceder
+        return obj.factura.fecha_salida if obj.factura else None
 
 
 
@@ -34,23 +37,22 @@ class ReporteSerializer(serializers.ModelSerializer):
         
 
 class FacturaSerializer(serializers.ModelSerializer):
-    
     total = serializers.SerializerMethodField(help_text="Total calculado basado en la cantidad y el valor unitario")
-    stock_restante = serializers.SerializerMethodField(help_text="Stock restante del producto después de la factura")
+    stock_restante = serializers.SerializerMethodField(help_text="Stock restante del equipo después de la factura")
 
-    
-    numero_factura = serializers.ReadOnlyField()
-    equipo = serializers.ReadOnlyField(source="producto.equipo")
-    referencia = serializers.ReadOnlyField(source="producto.referencia")
-    marca = serializers.ReadOnlyField(source="producto.marca")
-    serial = serializers.ReadOnlyField(source="producto.serial")
-    descripcion = serializers.ReadOnlyField(source="producto.descripcion")
-    fecha_entrada = serializers.ReadOnlyField(source="producto.fecha_entrada")
-    valor = serializers.ReadOnlyField(source="producto.valor")
-    estado = serializers.ReadOnlyField(source="producto.estado")
-    observaciones = serializers.ReadOnlyField(source="producto.observaciones")
+    productos = EquipoMaterialSerializer(many=True, read_only=True)  # Productos relacionados
 
-    
+    # Campos relacionados con el equipo (EquipoMaterial)
+    equipo = serializers.SerializerMethodField()
+    referencia = serializers.SerializerMethodField()
+    marca = serializers.SerializerMethodField()
+    serial = serializers.SerializerMethodField()
+    descripcion = serializers.SerializerMethodField()
+    fecha_entrada = serializers.SerializerMethodField()
+    valor = serializers.SerializerMethodField()
+    estado = serializers.SerializerMethodField()
+    observaciones = serializers.SerializerMethodField()
+
     nombre_cliente = serializers.CharField(max_length=100)
     compania_cliente = serializers.CharField(max_length=100, required=False, allow_blank=True)
     direccion = serializers.CharField(max_length=255, required=False, allow_blank=True)
@@ -62,7 +64,7 @@ class FacturaSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'numero_factura',
-            'producto',
+            'productos',  # Lista de productos anidados (opcional en creación)
             'equipo',
             'referencia',
             'marca',
@@ -83,72 +85,103 @@ class FacturaSerializer(serializers.ModelSerializer):
             'telefono',
         ]
 
-    # Métodos para los campos calculados
+    def get_equipo(self, obj):
+        return ", ".join([producto.equipo for producto in obj.productos.all()])
+
+    def get_referencia(self, obj):
+        return ", ".join([producto.referencia for producto in obj.productos.all()])
+
+    def get_marca(self, obj):
+        return ", ".join([producto.marca for producto in obj.productos.all()])
+
+    def get_serial(self, obj):
+        return ", ".join([producto.serial for producto in obj.productos.all()])
+
+    def get_descripcion(self, obj):
+        return ", ".join([producto.descripcion for producto in obj.productos.all()])
+
+    def get_fecha_entrada(self, obj):
+        return ", ".join([str(producto.fecha_entrada) for producto in obj.productos.all()])
+
+    def get_valor(self, obj):
+        return sum([producto.valor for producto in obj.productos.all()])
+
+    def get_estado(self, obj):
+        return ", ".join([producto.estado for producto in obj.productos.all()])
+
+    def get_observaciones(self, obj):
+        return ", ".join([producto.observaciones for producto in obj.productos.all()])
+
     def get_total(self, obj):
-        """Calcula el total basado en la cantidad y el valor unitario."""
-        return obj.cantidad * float(obj.producto.valor)
+        """Calcula el total basado en los productos asociados."""
+        return sum(producto.cantidad * producto.valor for producto in obj.productos.all())
 
     def get_stock_restante(self, obj):
-        """Devuelve el stock restante del producto."""
-        return obj.producto.cantidad
+        """Calcula el stock restante para los productos asociados."""
+        return sum(producto.cantidad for producto in obj.productos.all())
 
-    # Validación personalizada
     def validate(self, data):
-        producto = data['producto']
-        cantidad = data['cantidad']
+        """Valida que haya suficiente stock para los productos en la factura."""
+        productos = data.get('productos', [])  # Productos son opcionales
+        cantidad = data.get('cantidad', 0)
 
-        if producto.cantidad < cantidad:
-            raise serializers.ValidationError("No hay suficiente stock disponible para esta cantidad.")
+        for producto in productos:
+            if producto.cantidad < cantidad:
+                raise serializers.ValidationError(
+                    f"No hay suficiente stock disponible para el producto {producto.equipo}."
+                )
         return data
 
     def create(self, validated_data):
-        """
-        Al crear la factura, reduce el stock del producto.
-        """
-        producto = validated_data['producto']
-        cantidad = validated_data['cantidad']
-
-        # Reducir el stock
-        if producto.cantidad < cantidad:
-            raise serializers.ValidationError("No hay suficiente stock disponible.")
-        producto.cantidad -= cantidad
-        producto.save()
-
+        """Crea una factura, incluso si no hay productos asociados inicialmente."""
+        productos = validated_data.pop('productos', [])  # Productos son opcionales
         factura = Factura.objects.create(**validated_data)
+
+        # Asociar productos si se incluyen
+        if productos:
+            for producto in productos:
+                if producto.cantidad < validated_data.get('cantidad', 0):
+                    raise serializers.ValidationError(
+                        f"No hay suficiente stock disponible para el producto {producto.equipo}."
+                    )
+                producto.cantidad -= validated_data.get('cantidad', 0)
+                producto.save()
+            factura.productos.set(productos)
+
         return factura
 
     def update(self, instance, validated_data):
-        """
-        Al actualizar una factura, ajusta el stock del producto.
-        """
-        producto = instance.producto  
+        """Actualiza la factura y ajusta el stock de los productos."""
+        productos = validated_data.pop('productos', [])
         nueva_cantidad = validated_data.get('cantidad', instance.cantidad)
-        cantidad_anterior = instance.cantidad  
+        cantidad_anterior = instance.cantidad
 
-        
         diferencia = nueva_cantidad - cantidad_anterior
 
-        if diferencia > 0:  
-            if producto.cantidad < diferencia:
-                raise serializers.ValidationError("No hay suficiente stock disponible para esta cantidad.")
-            producto.cantidad -= diferencia  
+        # Ajustar stock de los productos asociados
+        for producto in productos:
+            if diferencia > 0:  # Incrementa la cantidad
+                if producto.cantidad < diferencia:
+                    raise serializers.ValidationError(
+                        f"No hay suficiente stock disponible para el producto {producto.equipo}."
+                    )
+                producto.cantidad -= diferencia
+            elif diferencia < 0:  # Reduce la cantidad
+                producto.cantidad += abs(diferencia)
+            producto.save()
 
-        elif diferencia < 0:  
-            producto.cantidad += abs(diferencia)
+        # Actualizar los productos asociados
+        if productos:
+            instance.productos.set(productos)
 
-        producto.save()  
-
-        
+        # Actualizar otros campos de la factura
         instance.cantidad = nueva_cantidad
         instance.fecha_salida = validated_data.get('fecha_salida', instance.fecha_salida)
-
-        
         instance.nombre_cliente = validated_data.get('nombre_cliente', instance.nombre_cliente)
         instance.compania_cliente = validated_data.get('compania_cliente', instance.compania_cliente)
         instance.direccion = validated_data.get('direccion', instance.direccion)
         instance.barrio = validated_data.get('barrio', instance.barrio)
         instance.telefono = validated_data.get('telefono', instance.telefono)
-
         instance.save()
 
         return instance
