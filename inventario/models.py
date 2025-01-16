@@ -39,7 +39,11 @@ class EquipoMaterial(models.Model):
         verbose_name="Categoría"
     )
     fecha_entrada = models.DateField(verbose_name="Fecha de entrada", null=True, blank=True)
+    fecha_salidas = models.DateField(verbose_name="Fecha de salidas", null=True, blank=True)  # Nuevo campo
     valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor", null=True, blank=True)
+    valor_factura = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor de la factura", null=True, blank=True)  # Nuevo campo
+    poliza = models.BooleanField(default=False, verbose_name="¿Tiene póliza?")  # Nuevo campo
+    fac = models.CharField(max_length=50, blank=True, null=True, verbose_name="Factura")  # Nuevo campo
     observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
     estado = models.CharField(
         max_length=20,
@@ -64,6 +68,7 @@ class EquipoMaterial(models.Model):
 
     def __str__(self):
         return f"{self.equipo} - {self.marca} ({self.serial})"
+
 
 
 # Modelo para Reporte
