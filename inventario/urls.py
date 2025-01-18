@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ActividadViewSet,
     CategoriaViewSet,
+    CompraViewSet,
     EquipoMaterialViewSet,
     MantenimientoViewSet,
     PedidoViewSet,
@@ -21,6 +22,7 @@ router.register('actividades', ActividadViewSet, basename='actividades')
 router.register('mantenimientos', MantenimientoViewSet, basename='mantenimiento')
 router.register('resumen', ResumenViewSet, basename='resumen')
 router.register('pedido', PedidoViewSet, basename='pedido')
+router.register(r'compras', CompraViewSet, basename='compra')
 
 # Agregar rutas personalizadas
 urlpatterns = [

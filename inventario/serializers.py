@@ -298,6 +298,42 @@ class PedidoSerializer(serializers.ModelSerializer):
 
 
 
+from rest_framework import serializers
+from .models import ProductoCompra
+
+class ProductoCompraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductoCompra
+        fields = [
+            'id', 'equipo', 'referencia', 'marca', 'serial', 'cantidad',
+            'descripcion', 'fecha_entrada', 'fecha_salida', 'estado',
+            'observaciones', 'poliza', 'valor'
+        ]
+
+
+from rest_framework import serializers
+from .models import Compra, ProductoCompra
+
+class CompraSerializer(serializers.ModelSerializer):
+    productos = ProductoCompraSerializer(many=True, read_only=True)  # Productos anidados
+
+    class Meta:
+        model = Compra
+        fields = ['id', 'factura', 'descripcion', 'fecha_creacion', 'productos']
+        
+        
+from rest_framework import serializers
+from .models import ProductoCompra
+
+class ProductoCompraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductoCompra
+        fields = [
+            'id', 'compra', 'equipo', 'referencia', 'marca', 'serial', 
+            'cantidad', 'descripcion', 'fecha_entrada', 'fecha_salida', 
+            'estado', 'observaciones', 'poliza', 'valor'
+        ]
+
 
 
 

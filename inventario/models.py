@@ -39,12 +39,13 @@ class EquipoMaterial(models.Model):
         verbose_name="Categoría"
     )
     fecha_entrada = models.DateField(verbose_name="Fecha de entrada", null=True, blank=True)
-    fecha_salidas = models.DateField(verbose_name="Fecha de salidas", null=True, blank=True)  # Nuevo campo
     valor = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor", null=True, blank=True)
+    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    
+    fac = models.CharField(max_length=50, blank=True, null=True, verbose_name="Factura")  # Nuevo campo
     valor_factura = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Valor de la factura", null=True, blank=True)  # Nuevo campo
     poliza = models.BooleanField(default=False, verbose_name="¿Tiene póliza?")  # Nuevo campo
-    fac = models.CharField(max_length=50, blank=True, null=True, verbose_name="Factura")  # Nuevo campo
-    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    fecha_salidas = models.DateField(verbose_name="Fecha de salidas", null=True, blank=True)  # Nuevo campo
     estado = models.CharField(
         max_length=20,
         choices=ESTADO_CHOICES,
@@ -272,6 +273,46 @@ class Pedido(models.Model):
 
     def __str__(self):
         return f"Pedido de {self.nombre_cliente} ({self.estado})"
+
+
+
+
+
+from django.db import models
+
+class Compra(models.Model):
+    factura = models.CharField(max_length=50, blank=True, null=True, verbose_name="Factura")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción de la Compra")
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+
+    def __str__(self):
+        return f"Compra {self.factura or 'Sin Factura'}"
+
+class ProductoCompra(models.Model):
+    compra = models.ForeignKey(
+        Compra,
+        on_delete=models.CASCADE,
+        related_name="productos",
+        verbose_name="Compra"
+    )
+    equipo = models.CharField(max_length=150, verbose_name="Nombre del equipo")
+    referencia = models.CharField(max_length=150, blank=True, null=True, verbose_name="Referencia del equipo")
+    marca = models.CharField(max_length=100, blank=True, null=True, verbose_name="Marca del equipo")
+    serial = models.CharField(max_length=100, blank=True, null=True, verbose_name="Número de serie")
+    cantidad = models.PositiveIntegerField(blank=True, null=True, verbose_name="Cantidad")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
+    fecha_entrada = models.DateField(blank=True, null=True, verbose_name="Fecha de Entrada")
+    fecha_salida = models.DateField(blank=True, null=True, verbose_name="Fecha de Salida")
+    estado = models.CharField(max_length=50, blank=True, null=True, verbose_name="Estado")
+    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    poliza = models.BooleanField(default=False, verbose_name="¿Tiene Póliza?")
+    valor = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="Valor")
+
+    def __str__(self):
+        return f"{self.equipo or 'Sin Equipo'} ({self.compra.factura or 'Sin Factura'})"
+
+
+
 
 
 

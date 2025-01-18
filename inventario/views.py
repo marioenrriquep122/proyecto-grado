@@ -7,8 +7,8 @@ from django.utils.timezone import now
 
 from inventario.utils import registrar_actividad
 from usuarios.models import Usuario
-from .models import Categoria, EquipoMaterial, Mantenimiento,  Reporte, Factura, Actividad, Factura, Resumen
-from .serializers import ActividadSerializer, CategoriaSerializer, EquipoMaterialSerializer, MantenimientoSerializer, ReporteSerializer, FacturaSerializer, ResumenSerializer
+from .models import Categoria, Compra, EquipoMaterial, Mantenimiento,  Reporte, Factura, Actividad, Factura, Resumen
+from .serializers import ActividadSerializer, CategoriaSerializer, CompraSerializer, EquipoMaterialSerializer, MantenimientoSerializer, ReporteSerializer, FacturaSerializer, ResumenSerializer
 
 from rest_framework import viewsets,status
 from rest_framework.decorators import action
@@ -1077,3 +1077,39 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 {"success": False, "message": f"Error al marcar el pedido como 'terminado': {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Compra, ProductoCompra
+from .serializers import CompraSerializer, ProductoCompraSerializer
+
+class CompraViewSet(ModelViewSet):
+    queryset = Compra.objects.all().order_by('-fecha_creacion')
+    serializer_class = CompraSerializer
+
+    @action(detail=True, methods=['post'], url_path='agregar-producto', serializer_class=ProductoCompraSerializer)
+    def agregar_producto(self, request, pk=None):
+        """
+        Agrega un producto a una compra existente.
+        """
+        try:
+            compra = self.get_object()  # Obtener la compra por ID
+        except Compra.DoesNotExist:
+            return Response({"error": "Compra no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Asociar el nuevo producto a la compra
+        producto_data = request.data.copy()
+        producto_data['compra'] = compra.id  # Asociar el producto con la compra actual
+        serializer = ProductoCompraSerializer(data=producto_data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
