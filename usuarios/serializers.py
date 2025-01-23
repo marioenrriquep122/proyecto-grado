@@ -12,7 +12,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ['id', 'username', 'email', 'telefono', 'rol', 'is_active', 'fecha_creacion', 'contrasena']
-        read_only_fields = ['id', 'fecha_creacion']  # Campos de solo lectura
+        read_only_fields = ['id', 'fecha_creacion'] 
 
     def create(self, datos_validados):
         """

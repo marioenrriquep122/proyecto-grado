@@ -12,7 +12,7 @@ from .views import (
     ResumenViewSet
 )
 
-# Configuración del enrutador de DRF
+\
 router = DefaultRouter()
 router.register('categorias', CategoriaViewSet, basename='categorias')
 router.register('productos', EquipoMaterialViewSet, basename='productos')
@@ -24,8 +24,8 @@ router.register('resumen', ResumenViewSet, basename='resumen')
 router.register('pedido', PedidoViewSet, basename='pedido')
 router.register(r'compras', CompraViewSet, basename='compra')
 
-# Agregar rutas personalizadas
+
 urlpatterns = [
-    path('', include(router.urls)),  # Incluye todas las rutas generadas por el router
+    path('', include(router.urls)),  
      
 ]

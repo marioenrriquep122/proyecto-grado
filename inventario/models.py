@@ -109,8 +109,6 @@ class Factura(models.Model):
         null=True,
         verbose_name="Número de Factura"
     )
-
-    
     nombre_cliente = models.CharField(max_length=100, verbose_name="Nombre del Cliente")
     compania_cliente = models.CharField(max_length=100, verbose_name="Compañía del Cliente", blank=True, null=True)
     direccion = models.CharField(max_length=255, verbose_name="Dirección", blank=True, null=True)
@@ -122,8 +120,19 @@ class Factura(models.Model):
             self.numero_factura = f"FAC-{random.randint(10000, 99999)}"
         super().save(*args, **kwargs)
 
+    def get_producto(self):
+        """Devuelve el producto relacionado o un mensaje indicando que no está asignado."""
+        try:
+            return self.producto
+        except self.producto.RelatedObjectDoesNotExist:
+            return None
+
     def __str__(self):
-        return f"Factura {self.numero_factura} - Producto: {self.producto.equipo}"
+        producto = self.get_producto()
+        if producto:
+            return f"Factura {self.numero_factura} - Producto: {producto.equipo}"
+        return f"Factura {self.numero_factura} - Producto: No asignado"
+
 
 
 
@@ -146,17 +155,11 @@ class Actividad(models.Model):
     tipo = models.CharField(max_length=50, choices=TIPO_CHOICES, verbose_name="Tipo de Actividad")
     descripcion = models.TextField(verbose_name="Descripción de la Actividad")
     fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de la Actividad")
-    
-    # Campo para categoría
     nombre = models.CharField(max_length=255, null=True, blank=True, verbose_name="Nombre Asociado")  
-    
-    # Campos de producto
     equipo = models.CharField(max_length=255, null=True, blank=True, verbose_name="Equipo")  
     marca = models.CharField(max_length=255, null=True, blank=True, verbose_name="Marca")    
     cantidad = models.IntegerField(null=True, blank=True, verbose_name="Cantidad")          
     valor = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor")
-    
-    # Campos específicos de factura
     valor_total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor Total")
     numero_factura = models.CharField(max_length=50, null=True, blank=True, verbose_name="Número de Factura")
     nombre_cliente = models.CharField(max_length=255, null=True, blank=True, verbose_name="Nombre del Cliente")
@@ -203,12 +206,12 @@ class Mantenimiento(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        # Si el estado es "completado", actualizar el estado del producto
+        
         if self.estado == 'completado':
             self.producto.estado = 'disponible'
         elif self.estado in ['pendiente', 'en_proceso']:
             self.producto.estado = 'en_mantenimiento'
-        self.producto.save()  # Guardar el cambio en el producto
+        self.producto.save()  
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -233,8 +236,6 @@ class Pedido(models.Model):
         ('en_proceso', 'En Proceso'),
         ('terminado', 'Terminado'),
     ]
-
-    # Información del cliente
     nombre_cliente = models.CharField(max_length=255, verbose_name="Nombre del Cliente")
     telefono = models.CharField(max_length=15, verbose_name="Teléfono")
     correo = models.EmailField(verbose_name="Correo Electrónico")
@@ -242,7 +243,6 @@ class Pedido(models.Model):
     barrio = models.CharField(max_length=255, verbose_name="Barrio")
     nombre_compania = models.CharField(max_length=255, verbose_name="Nombre de la Compañía")
 
-    # Relación con categorías y productos
     categoria = models.ForeignKey(
         'Categoria',
         on_delete=models.CASCADE,
@@ -256,14 +256,12 @@ class Pedido(models.Model):
         verbose_name="Producto"
     )
 
-    # Información adicional
+    
     descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
     fecha_reserva = models.DateField(verbose_name="Fecha de Reserva")
     fecha_inicio = models.DateField(verbose_name="Fecha de Inicio")
     fecha_fin = models.DateField(verbose_name="Fecha de Fin")
     cantidad = models.PositiveIntegerField(verbose_name="Cantidad")
-
-    # Estado del pedido
     estado = models.CharField(
         max_length=20,
         choices=ESTADO_CHOICES,

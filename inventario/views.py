@@ -32,8 +32,7 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     """
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
-    permission_classes = [AllowAny]  # Cambia según tu necesidad
-
+    permission_classes = [AllowAny]  
     def create(self, request, *args, **kwargs):
         """
         Sobrescribe para validar si el nombre ya existe antes de crear.
@@ -46,15 +45,15 @@ class CategoriaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Llama al método original para realizar la creación
+        
         response = super().create(request, *args, **kwargs)
 
-        # Registra la actividad después de la creación
-        if response.status_code == 201:  # Solo si se creó correctamente
+        
+        if response.status_code == 201: 
             registrar_actividad(
-                tipo='categoria',  # Tipo de actividad
-                descripcion="Se ha creado una categoría.",  # Descripción genérica
-                nombre=response.data.get('nombre')  # Pasar el nombre de la categoría
+                tipo='categoria',  
+                descripcion="Se ha creado una categoría.", 
+                nombre=response.data.get('nombre')  
             )
         return response
 
@@ -71,15 +70,15 @@ class CategoriaViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Llama al método original para realizar la actualización
+        
         response = super().update(request, *args, **kwargs)
 
-        # Registra la actividad después de la actualización
-        if response.status_code == 200:  # Solo si se actualizó correctamente
+        
+        if response.status_code == 200: 
             registrar_actividad(
-                tipo='categoria',  # Tipo de actividad
-                descripcion="Se ha actualizado una categoría.",  # Descripción genérica
-                nombre=response.data.get('nombre')  # Pasar el nombre actualizado de la categoría
+                tipo='categoria',  
+                descripcion="Se ha actualizado una categoría.", 
+                nombre=response.data.get('nombre')  
             )
         return response
 
@@ -88,18 +87,18 @@ class CategoriaViewSet(viewsets.ModelViewSet):
 
 # --- EquipoMaterial  que es producto---
 from rest_framework.exceptions import ValidationError
-from .utils import registrar_actividad  # Asegúrate de que esta función esté correctamente importada
+from .utils import registrar_actividad  
 
 class EquipoMaterialViewSet(viewsets.ModelViewSet):
     queryset = EquipoMaterial.objects.all()
     serializer_class = EquipoMaterialSerializer
-    permission_classes = [AllowAny]  # Cambia según necesidad
+    permission_classes = [AllowAny]  
 
     def create(self, request, *args, **kwargs):
         """
         Crear un producto y registrar una actividad.
         """
-        # Hacer una copia mutable de request.data
+        
         mutable_data = request.data.copy()
 
         categoria_id = mutable_data.get('categoria')
@@ -119,11 +118,11 @@ class EquipoMaterialViewSet(viewsets.ModelViewSet):
         else:
             mutable_data['estado'] = 'retirado'
 
-        # Reemplaza el data original con el mutable antes de pasar al super
+        
         request._full_data = mutable_data
         response = super().create(request, *args, **kwargs)
 
-        # Registrar la actividad después de la creación
+        
         if response.status_code == 201:
             producto = EquipoMaterial.objects.get(id=response.data['id'])
             registrar_actividad(
@@ -140,7 +139,7 @@ class EquipoMaterialViewSet(viewsets.ModelViewSet):
         """
         Actualizar un producto y registrar una actividad.
         """
-        # Hacer una copia mutable de request.data
+       
         mutable_data = request.data.copy()
 
         instance = self.get_object()
@@ -148,11 +147,11 @@ class EquipoMaterialViewSet(viewsets.ModelViewSet):
         if serial and EquipoMaterial.objects.filter(serial=serial).exclude(id=instance.id).exists():
             raise ValidationError(f"El número de serie ya está en uso: {serial}.")
 
-        # Reemplaza el data original con el mutable antes de pasar al super
+        
         request._full_data = mutable_data
         response = super().update(request, *args, **kwargs)
 
-        # Registrar la actividad después de la actualización
+        
         if response.status_code == 200:
             producto = EquipoMaterial.objects.get(id=response.data['id'])
             registrar_actividad(
@@ -208,11 +207,11 @@ class ReporteViewSet(viewsets.ModelViewSet):
         self.perform_create(serializer)
         reporte = serializer.instance
 
-        # Validación de rango de fechas
+        
         if reporte.fecha_inicio and reporte.fecha_fin and reporte.fecha_inicio > reporte.fecha_fin:
             raise ValidationError("La fecha de inicio no puede ser mayor que la fecha de fin.")
 
-        # Generar datos según el tipo
+        
         if reporte.tipo == "general":
             datos = self._generar_resumen(reporte.fecha_inicio, reporte.fecha_fin)
         elif reporte.tipo == "stock":
@@ -224,17 +223,16 @@ class ReporteViewSet(viewsets.ModelViewSet):
         else:
             datos = {"mensaje": "Tipo de reporte no válido."}
 
-        # Guardar los datos generados en el reporte
+        
         reporte.datos = datos
         reporte.save()
 
-        # Registrar la actividad con el tipo de reporte en la descripción
+        
         registrar_actividad(
             tipo='reporte',
             descripcion=f"Se ha generado un reporte de tipo '{reporte.tipo}'."
         )
 
-        # Respuesta con los datos generados
         response_data = serializer.data
         response_data["datos"] = datos
         return Response(response_data, status=status.HTTP_201_CREATED)
@@ -246,17 +244,17 @@ class ReporteViewSet(viewsets.ModelViewSet):
         """
         Actualizar un reporte y regenerar los datos dinámicamente.
         """
-        partial = kwargs.pop('partial', False)  # Permitir actualizaciones parciales (PATCH)
+        partial = kwargs.pop('partial', False)  
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        # Validar fechas
+       
         if instance.fecha_inicio and instance.fecha_fin and instance.fecha_inicio > instance.fecha_fin:
             raise ValidationError("La fecha de inicio no puede ser mayor que la fecha de fin.")
 
-        # Regenerar los datos según el tipo
+       
         if instance.tipo == "general":
             datos = self._generar_resumen(instance.fecha_inicio, instance.fecha_fin)
         elif instance.tipo == "stock":
@@ -268,11 +266,11 @@ class ReporteViewSet(viewsets.ModelViewSet):
         else:
             datos = []
 
-        # Guardar los datos actualizados
+        
         instance.datos = datos
         instance.save()
 
-        # Registrar la actividad
+        
         registrar_actividad(
             tipo='reporte',
             descripcion=(
@@ -281,7 +279,7 @@ class ReporteViewSet(viewsets.ModelViewSet):
             )
         )
 
-        # Incluir los datos actualizados en la respuesta
+       
         response_data = serializer.data
         response_data["datos"] = datos
         return Response(response_data, status=status.HTTP_200_OK)
@@ -292,7 +290,7 @@ class ReporteViewSet(viewsets.ModelViewSet):
         """
         resumen, created = Resumen.objects.get_or_create()
 
-        # Calcular los datos del resumen general
+        
         resumen_datos = self._calcular_datos_resumen(fecha_inicio, fecha_fin)
 
         return {
@@ -307,7 +305,7 @@ class ReporteViewSet(viewsets.ModelViewSet):
         categorias_totales = Categoria.objects.count()
         productos_totales = EquipoMaterial.objects.count()
 
-        # Filtrar facturas y actividades por fechas si son proporcionadas
+        
         if fecha_inicio and fecha_fin:
             facturas = Factura.objects.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
             actividades = Actividad.objects.filter(fecha__range=[fecha_inicio, fecha_fin])
@@ -337,7 +335,7 @@ class ReporteViewSet(viewsets.ModelViewSet):
         if fecha_inicio and fecha_fin:
             productos = productos.filter(fecha_entrada__range=[fecha_inicio, fecha_fin])
 
-        # Convertir productos a un formato serializable
+        
         return [
             {
                 "id": producto.id,
@@ -355,7 +353,7 @@ class ReporteViewSet(viewsets.ModelViewSet):
         if fecha_inicio and fecha_fin:
             facturas = facturas.filter(fecha_salida__range=[fecha_inicio, fecha_fin])
 
-        # Convertir facturas a un formato serializable
+        
         return [
             {
                 "id": factura.id,
@@ -363,9 +361,9 @@ class ReporteViewSet(viewsets.ModelViewSet):
                 "cantidad": factura.cantidad,
                 "fecha_salida": factura.fecha_salida.isoformat(),
                 "numero_factura": factura.numero_factura,
-                "valor": float(factura.producto.valor),  # Convertir Decimal a float
-                "total": float(factura.cantidad * factura.producto.valor),  # Convertir total a float
-                "stock_restante": factura.producto.cantidad,  # Stock restante después de la factura
+                "valor": float(factura.producto.valor),  
+                "total": float(factura.cantidad * factura.producto.valor),  
+                "stock_restante": factura.producto.cantidad, 
             }
             for factura in facturas
         ]
@@ -378,7 +376,7 @@ class ReporteViewSet(viewsets.ModelViewSet):
         """
         actividades = Actividad.objects.all()
 
-        # Validar y convertir fechas de string a datetime
+       
         try:
             if fecha_inicio:
                 fecha_inicio = datetime.strptime(str(fecha_inicio), "%Y-%m-%d")
@@ -387,14 +385,14 @@ class ReporteViewSet(viewsets.ModelViewSet):
         except ValueError:
             return {"mensaje": "Formato de fecha inválido. Usa el formato YYYY-MM-DD."}
 
-        # Filtrar por rango de fechas si se proporcionan
+        
         if fecha_inicio and fecha_fin:
             actividades = actividades.filter(fecha__date__range=[fecha_inicio, fecha_fin])
 
         if not actividades.exists():
             return {"mensaje": "No se encontraron actividades en el rango de fechas proporcionado."}
 
-        # Convertir actividades a un formato serializable
+        
         return [
             {
                 "id": actividad.id,
@@ -414,7 +412,7 @@ class ReporteViewSet(viewsets.ModelViewSet):
         """
         resumen, created = Resumen.objects.get_or_create()
 
-        # Calcular los datos del resumen general
+       
         resumen_datos = self._calcular_datos_resumen(fecha_inicio, fecha_fin)
 
         return {
@@ -542,41 +540,63 @@ class FacturaViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        Valida el stock del producto y registra una actividad al crear una factura.
+        Valida el stock del producto, verifica su estado y registra una actividad al crear una factura.
         """
-        producto_id = request.data.get('producto')
-        cantidad = int(request.data.get('cantidad', 0))
+        producto_id = request.data.get('producto')  
+        cantidad = request.data.get('cantidad', 0)
 
-        # Validar si el producto existe
+        
+        if not cantidad or int(cantidad) <= 0:
+            return Response(
+                {"error": "Debe especificar una cantidad válida mayor a 0."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        cantidad = int(cantidad)
+
+        
         try:
             producto = EquipoMaterial.objects.get(id=producto_id)
         except EquipoMaterial.DoesNotExist:
-            raise ValidationError("El producto especificado no existe.")
+            return Response(
+                {"error": "El producto especificado no existe."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # Validar el estado y el stock del producto
+        
         if producto.estado != 'disponible':
-            raise ValidationError(f"El producto '{producto.equipo}' no está disponible (Estado actual: {producto.estado}).")
+            return Response(
+                {"error": f"El producto '{producto.equipo}' no está disponible (Estado actual: {producto.estado})."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        
         if producto.cantidad < cantidad:
-            raise ValidationError(f"No hay suficiente stock para el producto '{producto.equipo}'. Stock disponible: {producto.cantidad}, solicitado: {cantidad}.")
+            return Response(
+                {
+                    "error": f"No hay suficiente stock para el producto '{producto.equipo}'.",
+                    "stock_disponible": producto.cantidad,
+                    "cantidad_solicitada": cantidad
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Ajustar el stock del producto
+        
         producto.cantidad -= cantidad
         if producto.cantidad == 0:
-            producto.estado = 'retirado'
+            producto.estado = 'retirado'  
         producto.save()
 
-        # Crear la factura
+        
         response = super().create(request, *args, **kwargs)
         factura = Factura.objects.get(id=response.data['id'])
 
-        # Calcular el valor total
-        valor_total = cantidad * producto.valor
+       
+        valor_total = cantidad * float(producto.valor)
 
-        # Registrar la actividad
+        
         registrar_actividad(
             tipo='factura',
-            descripcion="Factura generada.",
+            descripcion="Factura generada exitosamente.",
             numero_factura=factura.numero_factura,
             nombre_cliente=factura.nombre_cliente,
             equipo=producto.equipo,
@@ -585,7 +605,17 @@ class FacturaViewSet(viewsets.ModelViewSet):
             valor_total=valor_total
         )
 
+        
+        response.data['valor_total'] = valor_total
+        response.data['producto_info'] = {
+            "id": producto.id,
+            "equipo": producto.equipo,
+            "estado": producto.estado,
+            "stock_restante": producto.cantidad
+        }
+
         return response
+
 
     def update(self, request, *args, **kwargs):
         """
@@ -595,14 +625,14 @@ class FacturaViewSet(viewsets.ModelViewSet):
         producto = factura.producto
         nueva_cantidad = int(request.data.get('cantidad', factura.cantidad))
 
-        # Revertir el stock anterior
+        
         producto.cantidad += factura.cantidad
 
-        # Validar el nuevo stock
+        
         if producto.cantidad < nueva_cantidad:
             raise ValidationError(f"No hay suficiente stock para actualizar esta factura. Stock disponible: {producto.cantidad}, solicitado: {nueva_cantidad}.")
 
-        # Ajustar el stock con la nueva cantidad
+       
         producto.cantidad -= nueva_cantidad
         if producto.cantidad == 0:
             producto.estado = 'retirado'
@@ -610,7 +640,7 @@ class FacturaViewSet(viewsets.ModelViewSet):
             producto.estado = 'disponible'
         producto.save()
 
-        # Actualizar la factura
+        
         factura.nombre_cliente = request.data.get('nombre_cliente', factura.nombre_cliente)
         factura.compania_cliente = request.data.get('compania_cliente', factura.compania_cliente)
         factura.direccion = request.data.get('direccion', factura.direccion)
@@ -618,10 +648,9 @@ class FacturaViewSet(viewsets.ModelViewSet):
         factura.telefono = request.data.get('telefono', factura.telefono)
         factura.save()
 
-        # Calcular el nuevo valor total
+        
         valor_total = nueva_cantidad * producto.valor
 
-        # Registrar la actividad
         registrar_actividad(
             tipo='factura',
             descripcion="Factura actualizada.",
@@ -634,22 +663,19 @@ class FacturaViewSet(viewsets.ModelViewSet):
         )
 
         return super().update(request, *args, **kwargs)
-
-
-    def destroy(self, request, *args, **kwargs):
-        """
-        Restablece el stock del producto al eliminar una factura.
-        """
+    
+    
+    def retrieve(self, request, *args, **kwargs):
         factura = self.get_object()
-        producto = factura.producto
+        try:
+            producto = factura.producto
+        except Factura.producto.RelatedObjectDoesNotExist:
+            return Response(
+                {"error": "Esta factura no tiene un producto relacionado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return super().retrieve(request, *args, **kwargs)
 
-        # Revertir el stock
-        producto.cantidad += factura.cantidad
-        if producto.estado == 'retirado':
-            producto.estado = 'disponible'
-        producto.save()
-
-        return super().destroy(request, *args, **kwargs)
 
 
 
@@ -674,17 +700,17 @@ class ActividadViewSet(viewsets.ModelViewSet):
         """
         data = request.data.copy()
 
-        # Validar el tipo
+       
         tipo = data.get('tipo')
         if tipo not in dict(Actividad.TIPO_CHOICES).keys():
             raise ValidationError(f"Tipo de actividad no válido: {tipo}")
 
-        # Validar que la descripción no esté vacía
+       
         descripcion = data.get('descripcion', '').strip()
         if not descripcion:
             raise ValidationError("La descripción no puede estar vacía.")
 
-        # Validar `valor_total` solo si aplica
+        
         if tipo in ['factura', 'pedido']:
             valor_total = data.get('valor_total')
             if valor_total is None:
@@ -719,10 +745,10 @@ from datetime import date
 
 class ResumenViewSet(ViewSet):
     def list(self, request, *args, **kwargs):
-        # Asegurarse de que existe un único resumen
+        
         resumen, created = Resumen.objects.get_or_create()
 
-        # Calcular dinámicamente los datos consolidados
+        
         resumen_datos = self._calcular_datos()
 
         return Response({
@@ -731,7 +757,7 @@ class ResumenViewSet(ViewSet):
         })
 
     def _calcular_datos(self):
-        # Calcular totales generales
+        
         categorias_totales = Categoria.objects.count()
         productos_totales = EquipoMaterial.objects.count()
         facturas_totales = Factura.objects.count()
@@ -739,29 +765,28 @@ class ResumenViewSet(ViewSet):
         mantenimientos_totales = Mantenimiento.objects.count()
         stock_total_disponible = EquipoMaterial.objects.aggregate(total_stock=Sum('cantidad'))['total_stock'] or 0
 
-        # Calcular ventas totales dinámicamente
+        
         ventas_totales = Factura.objects.aggregate(
             total_ventas=Sum(F('cantidad') * F('producto__valor'))
         )['total_ventas'] or 0
 
-        # Filtrar facturas del día por `fecha_salida`
+        
         hoy = date.today()
         facturas_del_dia = Factura.objects.filter(fecha_salida=hoy)
 
-        # Calcular ventas del día dinámicamente
+        
         total_del_dia = facturas_del_dia.aggregate(
             total_dia=Sum(F('cantidad') * F('producto__valor'))
         )['total_dia'] or 0
 
-        # Filtrar actividades del día por fecha
+        
         actividades_del_dia = Actividad.objects.filter(fecha__date=hoy)
 
-        # Filtrar mantenimientos activos
         mantenimientos_activos = Mantenimiento.objects.filter(
             Q(fecha_inicio__lte=hoy) & Q(fecha_fin__gte=hoy)
         )
 
-        # Consolidar los datos
+        
         resumen_datos = {
             "total_categorias": categorias_totales,
             "total_productos": productos_totales,
@@ -769,11 +794,11 @@ class ResumenViewSet(ViewSet):
             "total_actividades": actividades_totales,
             "total_mantenimientos": mantenimientos_totales,
             "stock_total_disponible": stock_total_disponible,
-            "ventas_totales": ventas_totales,  # Suma total de todas las facturas
+            "ventas_totales": ventas_totales,  
             "facturas_del_dia": facturas_del_dia.count(),
             "actividades_del_dia": actividades_del_dia.count(),
             "mantenimientos_activos": mantenimientos_activos.count(),
-            "total_del_dia": total_del_dia,  # Suma total de las facturas del día
+            "total_del_dia": total_del_dia, 
         }
 
         return resumen_datos
@@ -798,20 +823,20 @@ class MantenimientoViewSet(viewsets.ModelViewSet):
         if producto.estado != 'disponible':
             raise ValidationError(f"El producto '{producto.equipo}' no está disponible y no puede ser puesto en mantenimiento.")
 
-        # Cambiar el estado del producto a "En mantenimiento"
+        
         producto.estado = 'mantenimiento'
         producto.save()
 
-        # Crear el registro de mantenimiento
+        
         response = super().create(request, *args, **kwargs)
         if response.status_code == 201:
             mantenimiento = Mantenimiento.objects.get(id=response.data['id'])
 
-            # Registrar la actividad con el nombre del producto
+            
             registrar_actividad(
                 tipo='mantenimiento',
                 descripcion="Se ha ingresado un producto a mantenimiento.",
-                equipo=producto.equipo  # Nombre del producto
+                equipo=producto.equipo  
             )
 
         return response
@@ -828,7 +853,7 @@ class MantenimientoViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        # Si el estado cambia a "completado", registrar actividad
+       
         if instance.estado == 'completado':
             registrar_actividad(
                 tipo='mantenimiento',
@@ -861,7 +886,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from .models import Pedido, EquipoMaterial
 from .serializers import PedidoSerializer
-from inventario.models import Categoria  # Asegúrate de importar tus modelos
+from inventario.models import Categoria  
 
 from rest_framework import viewsets
 from rest_framework.response import Response
@@ -880,31 +905,31 @@ class PedidoViewSet(viewsets.ModelViewSet):
         """
         mutable_data = request.data.copy()
 
-        # Validar categoría y producto
+        
         categoria_id = mutable_data.get('categoria')
         producto_id = mutable_data.get('producto')
 
         if not categoria_id or not producto_id:
             raise ValidationError("Debe seleccionar una categoría y un producto.")
 
-        # Validar si la categoría existe
+       
         try:
             categoria = Categoria.objects.get(id=categoria_id)
         except Categoria.DoesNotExist:
             raise ValidationError("La categoría especificada no existe.")
 
-        # Obtener productos asociados a la categoría
+        
         productos_asociados = EquipoMaterial.objects.filter(categoria=categoria)
         if not productos_asociados.exists():
             raise ValidationError("La categoría seleccionada no tiene productos asociados.")
 
-        # Validar si el producto pertenece a la categoría
+        
         try:
             producto = productos_asociados.get(id=producto_id)
         except EquipoMaterial.DoesNotExist:
             raise ValidationError("El producto especificado no pertenece a la categoría seleccionada.")
 
-        # Validar stock del producto
+        
         cantidad = int(mutable_data.get('cantidad', 0))
         if producto.cantidad < cantidad:
             mutable_data['estado'] = 'no_disponible'
@@ -913,12 +938,12 @@ class PedidoViewSet(viewsets.ModelViewSet):
             producto.save()
             mutable_data['estado'] = 'disponible'
 
-        # Crear el pedido
+        
         serializer = self.get_serializer(data=mutable_data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
 
-        # Respuesta con nombres en lugar de IDs
+       
         response_data = serializer.data
         response_data['categoria'] = categoria.nombre
         response_data['producto'] = producto.equipo
@@ -933,14 +958,14 @@ class PedidoViewSet(viewsets.ModelViewSet):
         pedido = self.get_object()
         producto = pedido.producto
 
-        # Crear una copia mutable de los datos del request
+        
         mutable_data = request.data.copy()
         nueva_cantidad = int(mutable_data.get('cantidad', pedido.cantidad))
 
-        # Revertir el stock anterior
+        
         producto.cantidad += pedido.cantidad
 
-        # Validar el nuevo stock
+        
         if producto.cantidad < nueva_cantidad:
             mutable_data['estado'] = 'no_disponible'
         else:
@@ -948,26 +973,26 @@ class PedidoViewSet(viewsets.ModelViewSet):
             producto.save()
             mutable_data['estado'] = 'disponible'
 
-        # Validar categoría
+        
         categoria_id = mutable_data.get('categoria')
         try:
             categoria = Categoria.objects.get(id=categoria_id)
         except Categoria.DoesNotExist:
             raise ValidationError("La categoría especificada no existe.")
 
-        # Validar producto
+        
         producto_id = mutable_data.get('producto')
         try:
             producto = EquipoMaterial.objects.get(id=producto_id)
         except EquipoMaterial.DoesNotExist:
             raise ValidationError("El producto especificado no existe.")
 
-        # Actualizar el pedido
+        
         serializer = self.get_serializer(pedido, data=mutable_data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        # Respuesta personalizada con nombres de categoría y producto
+       
         response_data = serializer.data
         response_data['categoria'] = categoria.nombre
         response_data['producto'] = producto.equipo
@@ -981,11 +1006,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
         pedido = self.get_object()
         producto = pedido.producto
 
-        # Revertir el stock del producto
+        
         producto.cantidad += pedido.cantidad
         producto.save()
 
-        # Eliminar el pedido
+        
         self.perform_destroy(pedido)
 
         return Response({"success": True, "message": "Pedido eliminado correctamente."})
@@ -1011,21 +1036,21 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
 
 
-    # Acción personalizada para aprobar un pedido
+   
     @action(detail=True, methods=['put'], url_path='aprobar')
     def aprobar(self, request, pk=None):
         try:
-            # Obtener el pedido
+            
             pedido = self.get_object()
 
-            # Verificar que el estado actual sea 'disponible'
+            
             if pedido.estado != 'disponible':
                 return Response(
                     {"success": False, "message": "El pedido no está en estado 'disponible' para ser aprobado."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Cambiar el estado del pedido a 'en_proceso'
+            
             pedido.estado = 'en_proceso'
             pedido.save()
 
@@ -1048,17 +1073,17 @@ class PedidoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['put'], url_path='terminar')
     def terminar(self, request, pk=None):
         try:
-            # Obtener el pedido
+           
             pedido = self.get_object()
 
-            # Verificar que el estado actual sea 'en_proceso'
+            
             if pedido.estado != 'en_proceso':
                 return Response(
                     {"success": False, "message": "El pedido no está en estado 'en_proceso' para ser terminado."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Cambiar el estado del pedido a 'terminado'
+            
             pedido.estado = 'terminado'
             pedido.save()
 
@@ -1097,13 +1122,13 @@ class CompraViewSet(ModelViewSet):
         Agrega un producto a una compra existente.
         """
         try:
-            compra = self.get_object()  # Obtener la compra por ID
+            compra = self.get_object()  
         except Compra.DoesNotExist:
             return Response({"error": "Compra no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Asociar el nuevo producto a la compra
+        
         producto_data = request.data.copy()
-        producto_data['compra'] = compra.id  # Asociar el producto con la compra actual
+        producto_data['compra'] = compra.id 
         serializer = ProductoCompraSerializer(data=producto_data)
 
         if serializer.is_valid():

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Actividad, Categoria, EquipoMaterial, Factura, Mantenimiento, Reporte, Resumen
+from .models import Actividad, Categoria, EquipoMaterial, Factura, Mantenimiento, Reporte, Resumen, Pedido, ProductoCompra, Compra
 from .models import Factura
 
 class CategoriaSerializer(serializers.ModelSerializer):
@@ -21,9 +21,6 @@ class EquipoMaterialSerializer(serializers.ModelSerializer):
         return obj.esta_en_mantenimiento
 
 
-
-
-
 class ReporteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reporte
@@ -34,11 +31,8 @@ class ReporteSerializer(serializers.ModelSerializer):
         
 
 class FacturaSerializer(serializers.ModelSerializer):
-    
     total = serializers.SerializerMethodField(help_text="Total calculado basado en la cantidad y el valor unitario")
     stock_restante = serializers.SerializerMethodField(help_text="Stock restante del producto después de la factura")
-
-    
     numero_factura = serializers.ReadOnlyField()
     equipo = serializers.ReadOnlyField(source="producto.equipo")
     referencia = serializers.ReadOnlyField(source="producto.referencia")
@@ -49,8 +43,6 @@ class FacturaSerializer(serializers.ModelSerializer):
     valor = serializers.ReadOnlyField(source="producto.valor")
     estado = serializers.ReadOnlyField(source="producto.estado")
     observaciones = serializers.ReadOnlyField(source="producto.observaciones")
-
-    
     nombre_cliente = serializers.CharField(max_length=100)
     compania_cliente = serializers.CharField(max_length=100, required=False, allow_blank=True)
     direccion = serializers.CharField(max_length=255, required=False, allow_blank=True)
@@ -83,23 +75,49 @@ class FacturaSerializer(serializers.ModelSerializer):
             'telefono',
         ]
 
-    # Métodos para los campos calculados
+    
     def get_total(self, obj):
         """Calcula el total basado en la cantidad y el valor unitario."""
-        return obj.cantidad * float(obj.producto.valor)
+        if obj.producto:
+            return obj.cantidad * float(obj.producto.valor)
+        return 0  
 
     def get_stock_restante(self, obj):
         """Devuelve el stock restante del producto."""
-        return obj.producto.cantidad
+        if obj.producto:
+            return obj.producto.cantidad
+        return None  
 
-    # Validación personalizada
+   
     def validate(self, data):
-        producto = data['producto']
-        cantidad = data['cantidad']
+        """
+        Valida que el producto sea válido y que haya suficiente stock para la factura.
+        """
+        producto = data.get('producto')
+        cantidad = data.get('cantidad', 0)
+        
+        if not producto:
+            raise serializers.ValidationError("Debe especificar un producto válido para la factura.")
 
+        
+        if cantidad <= 0:
+            raise serializers.ValidationError("La cantidad debe ser mayor a 0.")
+
+        
+        if producto.estado != 'disponible':
+            raise serializers.ValidationError(
+                f"El producto '{producto.equipo}' no está disponible (Estado actual: {producto.estado})."
+            )
+
+        
         if producto.cantidad < cantidad:
-            raise serializers.ValidationError("No hay suficiente stock disponible para esta cantidad.")
+            raise serializers.ValidationError(
+                f"No hay suficiente stock disponible para el producto '{producto.equipo}'. "
+                f"Stock disponible: {producto.cantidad}, cantidad solicitada: {cantidad}."
+            )
+
         return data
+
 
     def create(self, validated_data):
         """
@@ -108,12 +126,13 @@ class FacturaSerializer(serializers.ModelSerializer):
         producto = validated_data['producto']
         cantidad = validated_data['cantidad']
 
-        # Reducir el stock
-        if producto.cantidad < cantidad:
-            raise serializers.ValidationError("No hay suficiente stock disponible.")
+        
         producto.cantidad -= cantidad
+        if producto.cantidad == 0:
+            producto.estado = 'retirado'
         producto.save()
 
+       
         factura = Factura.objects.create(**validated_data)
         return factura
 
@@ -123,26 +142,26 @@ class FacturaSerializer(serializers.ModelSerializer):
         """
         producto = instance.producto  
         nueva_cantidad = validated_data.get('cantidad', instance.cantidad)
-        cantidad_anterior = instance.cantidad  
+        cantidad_anterior = instance.cantidad
 
-        
+       
         diferencia = nueva_cantidad - cantidad_anterior
 
+        
         if diferencia > 0:  
             if producto.cantidad < diferencia:
-                raise serializers.ValidationError("No hay suficiente stock disponible para esta cantidad.")
-            producto.cantidad -= diferencia  
-
+                raise serializers.ValidationError(
+                    f"No hay suficiente stock disponible para aumentar la cantidad a {nueva_cantidad}."
+                )
+            producto.cantidad -= diferencia
         elif diferencia < 0:  
             producto.cantidad += abs(diferencia)
 
-        producto.save()  
+        producto.save()
 
         
         instance.cantidad = nueva_cantidad
         instance.fecha_salida = validated_data.get('fecha_salida', instance.fecha_salida)
-
-        
         instance.nombre_cliente = validated_data.get('nombre_cliente', instance.nombre_cliente)
         instance.compania_cliente = validated_data.get('compania_cliente', instance.compania_cliente)
         instance.direccion = validated_data.get('direccion', instance.direccion)
@@ -150,8 +169,8 @@ class FacturaSerializer(serializers.ModelSerializer):
         instance.telefono = validated_data.get('telefono', instance.telefono)
 
         instance.save()
-
         return instance
+
 
     
 
@@ -170,7 +189,7 @@ class ActividadSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
 
         if instance.tipo == 'categoria':
-            # Solo mostrar datos relevantes para categorías
+            
             return {
                 'id': data['id'],
                 'tipo': data['tipo'],
@@ -180,7 +199,6 @@ class ActividadSerializer(serializers.ModelSerializer):
             }
 
         elif instance.tipo == 'producto':
-            # Solo mostrar datos relevantes para productos
             return {
                 'id': data['id'],
                 'tipo': data['tipo'],
@@ -193,7 +211,6 @@ class ActividadSerializer(serializers.ModelSerializer):
             }
 
         elif instance.tipo == 'factura':
-            # Solo mostrar datos relevantes para facturas
             return {
                 'id': data['id'],
                 'tipo': data['tipo'],
@@ -207,7 +224,6 @@ class ActividadSerializer(serializers.ModelSerializer):
             }
 
         elif instance.tipo == 'mantenimiento':
-            # Solo mostrar datos relevantes para mantenimiento
             return {
                 'id': data['id'],
                 'tipo': data['tipo'],
@@ -217,15 +233,12 @@ class ActividadSerializer(serializers.ModelSerializer):
             }
             
         elif instance.tipo == 'reporte':
-            # Solo mostrar campos relevantes para reportes
             return {
                 'id': data['id'],
                 'tipo': data['tipo'],
                 'descripcion': "Se ha generado un reporte.",
                 'fecha': data['fecha'],
             }
-
-        # Devolver todos los datos para tipos no especificados
         return data
 
 
@@ -252,7 +265,6 @@ class MantenimientoSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
-        # Validar que el estado "completado" solo se puede asignar si corresponde
         producto = self.instance.producto if self.instance else data.get('producto')
         estado = data.get('estado', self.instance.estado if self.instance else None)
 
@@ -264,14 +276,6 @@ class MantenimientoSerializer(serializers.ModelSerializer):
         return data
 
 
-    
-
-
-
-
-from rest_framework import serializers
-from .models import Resumen
-
 class ResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resumen
@@ -279,8 +283,7 @@ class ResumenSerializer(serializers.ModelSerializer):
 
 
 
-from rest_framework import serializers
-from .models import Pedido
+
 
 class PedidoSerializer(serializers.ModelSerializer):
     categoria_nombre = serializers.CharField(source='categoria.nombre', read_only=True)
@@ -297,17 +300,13 @@ class PedidoSerializer(serializers.ModelSerializer):
 
 
 
-
-from rest_framework import serializers
-from .models import ProductoCompra
-
 class ProductoCompraSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductoCompra
         fields = [
-            'id', 'equipo', 'referencia', 'marca', 'serial', 'cantidad',
-            'descripcion', 'fecha_entrada', 'fecha_salida', 'estado',
-            'observaciones', 'poliza', 'valor'
+            'id', 'compra', 'equipo', 'referencia', 'marca', 'serial', 
+            'cantidad', 'descripcion', 'fecha_entrada', 'fecha_salida', 
+            'estado', 'observaciones', 'poliza', 'valor'
         ]
 
 
@@ -322,17 +321,6 @@ class CompraSerializer(serializers.ModelSerializer):
         fields = ['id', 'factura', 'descripcion', 'fecha_creacion', 'productos']
         
         
-from rest_framework import serializers
-from .models import ProductoCompra
-
-class ProductoCompraSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductoCompra
-        fields = [
-            'id', 'compra', 'equipo', 'referencia', 'marca', 'serial', 
-            'cantidad', 'descripcion', 'fecha_entrada', 'fecha_salida', 
-            'estado', 'observaciones', 'poliza', 'valor'
-        ]
 
 
 

@@ -18,9 +18,9 @@ class CustomRouter(DefaultRouter):
             Vista raíz personalizada para incluir rutas adicionales.
             """
             def get(self, request, *args, **kwargs):
-                # Incluye rutas del router automáticamente
+                
                 response_data = {
-                    "usuarios": request.build_absolute_uri(reverse('usuario-list')),  # Del ViewSet
+                    "usuarios": request.build_absolute_uri(reverse('usuario-list')),  
                     "registro": request.build_absolute_uri(reverse('usuario-registro')),
                     "login": request.build_absolute_uri(reverse('usuario-login')),
                     "cambiar_contrasena": request.build_absolute_uri(reverse('usuario-cambiar-contrasena')),
